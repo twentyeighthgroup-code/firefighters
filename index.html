@@ -16,12 +16,17 @@
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh;
             overflow-x: hidden;
+            color: white;
+            user-select: none;
         }
 
         .game-container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 10px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Верхняя панель */
@@ -29,16 +34,19 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 10px;
         }
 
         .stat-box {
             background: linear-gradient(145deg, #2d2d44, #1a1a2e);
-            border-radius: 10px;
-            padding: 12px;
+            border-radius: 8px;
+            padding: 10px;
             text-align: center;
-            border: 2px solid #444;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border: 1px solid #444;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
 
         .stat-box.alert {
@@ -48,21 +56,21 @@
 
         @keyframes pulse-alert {
             0%, 100% { box-shadow: 0 0 5px #ff4444; }
-            50% { box-shadow: 0 0 20px #ff4444; }
+            50% { box-shadow: 0 0 15px #ff4444; }
         }
 
         .stat-label {
             color: #888;
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
         .stat-value {
             color: #fff;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
-            margin: 5px 0;
+            margin: 2px 0;
         }
 
         .stat-bar {
@@ -82,1481 +90,1042 @@
         /* Основная игровая зона */
         .main-area {
             display: grid;
-            grid-template-columns: 250px 1fr 280px;
+            grid-template-columns: 220px 1fr 250px;
             gap: 15px;
+            flex: 1;
+            min-height: 0; /* Для скролла */
         }
 
-        @media (max-width: 1200px) {
+        @media (max-width: 1100px) {
             .main-area {
                 grid-template-columns: 1fr;
+                overflow-y: auto;
+            }
+            .game-field {
+                min-height: 400px;
             }
         }
 
-        /* Левая панель - Управление */
-        .left-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
+        /* Панели */
         .panel {
             background: linear-gradient(145deg, #2d2d44, #1a1a2e);
             border-radius: 12px;
             padding: 15px;
             border: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .panel-title {
             color: #ff6b35;
             font-size: 14px;
             font-weight: bold;
-            margin-bottom: 12px;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .equipment-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-        }
-
-        .equipment-item {
-            background: #1a1a2e;
-            border: 2px solid #444;
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .equipment-item:hover {
-            border-color: #ff6b35;
-            transform: translateY(-2px);
-        }
-
-        .equipment-item.active {
-            border-color: #00ff88;
-            background: rgba(0, 255, 136, 0.1);
-        }
-
-        .equipment-item.disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .equipment-icon {
-            font-size: 28px;
-            margin-bottom: 5px;
-        }
-
-        .equipment-name {
-            color: #fff;
-            font-size: 10px;
-        }
-
-        .equipment-key {
-            color: #888;
-            font-size: 9px;
-            margin-top: 3px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
         }
 
         /* Игровое поле */
         .game-field {
             position: relative;
-            background: linear-gradient(180deg, #87CEEB 0%, #87CEEB 60%, #228B22 60%, #228B22 100%);
+            background: linear-gradient(180deg, #1a2a3a 0%, #4a6a8a 70%, #2d4a2d 70%, #1a3a1a 100%);
             border-radius: 12px;
-            min-height: 500px;
-            overflow: hidden;
             border: 3px solid #444;
+            overflow: hidden;
+            cursor: crosshair;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
         }
 
+        /* Здания */
         .building {
             position: absolute;
-            bottom: 0;
-            background: linear-gradient(180deg, #8B4513 0%, #654321 100%);
-            border: 3px solid #333;
-            border-bottom: none;
+            bottom: 10%; /* На уровне земли */
+            background: linear-gradient(90deg, #4a3b32, #3a2b22);
+            border: 2px solid #222;
             display: flex;
-            flex-direction: column;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-
-        .building:hover {
-            transform: scale(1.02);
-        }
-
-        .building-roof {
-            position: absolute;
-            top: -20px;
-            left: -5px;
-            right: -5px;
-            height: 25px;
-            background: #8B0000;
-            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+            flex-direction: column-reverse; /* Этажи снизу вверх */
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
         }
 
         .floor {
             display: flex;
             justify-content: space-around;
             align-items: center;
-            padding: 5px;
-            flex: 1;
-            border-bottom: 2px solid #333;
+            height: 60px;
+            border-top: 2px solid #2a1b12;
+            background: rgba(0,0,0,0.1);
         }
 
         .window {
-            width: 30px;
-            height: 35px;
-            background: linear-gradient(180deg, #87CEEB 0%, #5f9ea0 100%);
-            border: 2px solid #333;
-            border-radius: 3px 3px 0 0;
+            width: 35px;
+            height: 45px;
+            background: #2a2a4a;
+            border: 2px solid #111;
+            border-radius: 2px;
             position: relative;
+            overflow: hidden;
             transition: all 0.3s;
         }
 
-        .window.on-fire {
-            background: linear-gradient(180deg, #ff4500 0%, #ff0000 100%);
-            animation: fire-flicker 0.2s infinite alternate;
-            box-shadow: 0 0 20px #ff4500, 0 0 40px #ff0000;
+        .window.lit {
+            background: #ffffcc;
+            box-shadow: 0 0 10px rgba(255, 255, 200, 0.5);
         }
 
-        .window.smoking {
-            background: linear-gradient(180deg, #666 0%, #333 100%);
+        .window.on-fire {
+            background: linear-gradient(0deg, #ff4500, #ffcc00);
+            animation: fire-pulse 0.3s infinite alternate;
+            box-shadow: 0 0 15px #ff4500;
+        }
+
+        .window.burnt {
+            background: #111;
+            border-color: #000;
         }
 
         .window.saved {
-            background: linear-gradient(180deg, #90EE90 0%, #32CD32 100%);
+            border-color: #00ff88;
         }
 
-        @keyframes fire-flicker {
-            0% { box-shadow: 0 0 20px #ff4500, 0 0 40px #ff0000; }
-            100% { box-shadow: 0 0 30px #ff6600, 0 0 60px #ff4500; }
+        @keyframes fire-pulse {
+            0% { opacity: 0.8; }
+            100% { opacity: 1; box-shadow: 0 0 25px #ff4500; }
         }
 
-        .fire-particles {
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            pointer-events: none;
-        }
-
+        /* Огонь частицы */
         .fire-particle {
             position: absolute;
-            width: 8px;
-            height: 8px;
-            background: #ff4500;
-            border-radius: 50%;
-            animation: rise 1s infinite;
+            width: 100%;
+            height: 100%;
+            background: transparent;
         }
-
-        @keyframes rise {
-            0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-30px) scale(0); opacity: 0; }
-        }
-
-        /* Пожарная машина */
-        .fire-truck {
-            position: absolute;
-            bottom: 10px;
-            width: 120px;
-            height: 60px;
-            transition: left 0.5s ease-out;
-            cursor: pointer;
-            z-index: 10;
-        }
-
-        .truck-body {
+        
+        .fire-particle::before, .fire-particle::after {
+            content: '';
             position: absolute;
             bottom: 0;
             width: 100%;
-            height: 40px;
-            background: linear-gradient(180deg, #dc143c 0%, #8b0000 100%);
-            border-radius: 5px;
-            border: 2px solid #333;
+            height: 100%;
+            background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 4 10 4 15C4 19.4183 7.58172 23 12 23C16.4183 23 20 19.4183 20 15C20 10 12 2 12 2Z" fill="%23ff4500"/></svg>') no-repeat center bottom;
+            background-size: contain;
+            opacity: 0.8;
+            animation: burn 0.5s infinite alternate;
         }
 
-        .truck-cabin {
+        .fire-particle::after {
+            animation-duration: 0.7s;
+            opacity: 0.5;
+            transform: scale(0.7);
+        }
+
+        @keyframes burn {
+            from { transform: scaleY(1) translateY(0); }
+            to { transform: scaleY(1.1) translateY(-2px); }
+        }
+
+        /* Люди */
+        .person {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            z-index: 5;
+            animation: wave 1s infinite;
+        }
+
+        @keyframes wave {
+            0%, 100% { transform: translateX(-50%) rotate(0deg); }
+            25% { transform: translateX(-50%) rotate(-10deg); }
+            75% { transform: translateX(-50%) rotate(10deg); }
+        }
+
+        /* Машина и персонаж */
+        .truck-container {
+            position: absolute;
+            bottom: 10%;
+            left: 50px;
+            width: 140px;
+            height: 70px;
+            transition: left 0.1s linear;
+            z-index: 10;
+        }
+
+        .fire-truck {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 50px;
+            background: #d00;
+            border-radius: 5px;
+            border: 2px solid #300;
+        }
+
+        .truck-cab {
             position: absolute;
             bottom: 0;
             left: 0;
-            width: 35px;
-            height: 50px;
-            background: linear-gradient(180deg, #dc143c 0%, #8b0000 100%);
+            width: 40px;
+            height: 60px;
+            background: #d00;
             border-radius: 5px 5px 0 0;
-            border: 2px solid #333;
+            border: 2px solid #300;
         }
 
         .truck-window {
             position: absolute;
             top: 5px;
             left: 5px;
-            right: 5px;
-            height: 20px;
+            width: 30px;
+            height: 25px;
             background: #87CEEB;
-            border-radius: 3px;
             border: 1px solid #333;
         }
 
-        .truck-wheel {
+        .wheel {
             position: absolute;
-            bottom: -8px;
-            width: 20px;
-            height: 20px;
-            background: #333;
+            bottom: -10px;
+            width: 25px;
+            height: 25px;
+            background: #222;
+            border: 3px solid #555;
             border-radius: 50%;
-            border: 3px solid #666;
+            animation: rotate-wheel 0.5s linear infinite;
+            animation-play-state: paused;
         }
+        .wheel.moving { animation-play-state: running; }
+        .w-front { left: 5px; }
+        .w-back { right: 15px; }
 
-        .truck-wheel.front { left: 5px; }
-        .truck-wheel.back { right: 15px; }
+        @keyframes rotate-wheel { to { transform: rotate(360deg); } }
 
-        .truck-light {
+        .ladder-base {
             position: absolute;
-            top: -8px;
-            width: 15px;
+            top: -10px;
+            left: 40px;
+            width: 80px;
             height: 10px;
-            background: #ff0000;
-            border-radius: 3px;
-            animation: siren 0.5s infinite alternate;
-        }
-
-        .truck-light.left { left: 20px; background: #ff0000; }
-        .truck-light.right { left: 40px; background: #0000ff; animation-delay: 0.25s; }
-
-        @keyframes siren {
-            0% { opacity: 0.3; }
-            100% { opacity: 1; box-shadow: 0 0 10px currentColor; }
-        }
-
-        .ladder {
-            position: absolute;
-            bottom: 42px;
-            left: 50px;
-            width: 60px;
-            height: 8px;
-            background: linear-gradient(90deg, #c0c0c0, #808080);
+            background: #888;
             border: 1px solid #333;
             transform-origin: left center;
             transition: transform 0.5s, width 0.5s;
         }
 
-        .ladder.extended {
-            width: 200px;
-            transform: rotate(-60deg);
+        .ladder-base.active {
+            transform: rotate(-45deg);
+            width: 250px;
         }
 
-        /* Водяная струя */
-        .water-stream {
-            position: absolute;
-            pointer-events: none;
-            z-index: 100;
-        }
-
-        .water-drop {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: radial-gradient(circle, #00bfff, #0080ff);
-            border-radius: 50%;
-            animation: water-fall 0.5s linear forwards;
-        }
-
-        @keyframes water-fall {
-            0% { opacity: 1; }
-            100% { opacity: 0.3; transform: translateY(50px); }
-        }
-
-        /* Люди в окнах */
-        .person {
-            position: absolute;
-            bottom: 5px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 16px;
-            animation: wave 0.5s infinite alternate;
-        }
-
-        @keyframes wave {
-            0% { transform: translateX(-50%) translateY(0); }
-            100% { transform: translateX(-50%) translateY(-3px); }
-        }
-
-        /* Правая панель - Информация */
-        .right-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .mission-info {
-            background: linear-gradient(145deg, #2d2d44, #1a1a2e);
-            border-radius: 12px;
-            padding: 15px;
-            border: 2px solid #ff6b35;
-        }
-
-        .mission-title {
-            color: #ff6b35;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .mission-desc {
-            color: #ccc;
-            font-size: 12px;
-            line-height: 1.6;
-        }
-
-        .objectives {
-            margin-top: 10px;
-        }
-
-        .objective {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 5px 0;
-            color: #aaa;
-            font-size: 12px;
-        }
-
-        .objective.completed {
-            color: #00ff88;
-        }
-
-        .objective-check {
-            width: 16px;
-            height: 16px;
-            border: 2px solid currentColor;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-        }
-
-        .log-panel {
-            flex: 1;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .log-entry {
-            padding: 6px 10px;
-            border-left: 3px solid #444;
-            margin-bottom: 5px;
-            font-size: 11px;
-            color: #aaa;
-            background: rgba(0,0,0,0.2);
-            border-radius: 0 5px 5px 0;
-        }
-
-        .log-entry.fire { border-color: #ff4444; color: #ff6666; }
-        .log-entry.rescue { border-color: #00ff88; color: #00ff88; }
-        .log-entry.water { border-color: #00bfff; color: #00bfff; }
-        .log-entry.warning { border-color: #ffaa00; color: #ffaa00; }
-
-        /* Кнопки управления */
-        .control-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .control-btn {
-            padding: 12px 15px;
-            border: none;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .control-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-
-        .btn-primary {
-            background: linear-gradient(145deg, #ff6b35, #dc143c);
-            color: white;
-        }
-
-        .btn-secondary {
-            background: linear-gradient(145deg, #444, #333);
-            color: white;
-        }
-
-        .btn-success {
-            background: linear-gradient(145deg, #00aa55, #008844);
-            color: white;
-        }
-
-        .btn-danger {
-            background: linear-gradient(145deg, #dc143c, #8b0000);
-            color: white;
-        }
-
-        /* Модальные окна */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
-
-        .modal.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .modal-content {
-            background: linear-gradient(145deg, #2d2d44, #1a1a2e);
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-            max-width: 500px;
-            border: 2px solid #ff6b35;
-            transform: scale(0.8);
-            transition: transform 0.3s;
-        }
-
-        .modal.active .modal-content {
-            transform: scale(1);
-        }
-
-        .modal-title {
-            font-size: 28px;
-            color: #ff6b35;
-            margin-bottom: 15px;
-        }
-
-        .modal-text {
-            color: #ccc;
-            font-size: 16px;
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .stat-item {
-            background: rgba(0,0,0,0.3);
-            padding: 15px;
-            border-radius: 10px;
-        }
-
-        .stat-item-value {
-            font-size: 24px;
-            color: #00ff88;
-            font-weight: bold;
-        }
-
-        .stat-item-label {
-            color: #888;
-            font-size: 12px;
-            margin-top: 5px;
-        }
-
-        /* Smoke effect */
-        .smoke {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            overflow: hidden;
-        }
-
-        .smoke-particle {
-            position: absolute;
-            background: radial-gradient(circle, rgba(100,100,100,0.6), transparent);
-            border-radius: 50%;
-            animation: smoke-rise 3s infinite;
-        }
-
-        @keyframes smoke-rise {
-            0% { transform: translateY(0) scale(1); opacity: 0.6; }
-            100% { transform: translateY(-100px) scale(2); opacity: 0; }
-        }
-
-        /* Firefighter character */
         .firefighter {
             position: absolute;
-            bottom: 70px;
+            bottom: 10%;
             width: 30px;
             height: 50px;
-            transition: left 0.3s;
-            z-index: 20;
+            transition: left 0.1s linear;
+            z-index: 12;
         }
 
         .ff-body {
-            position: absolute;
-            bottom: 0;
             width: 100%;
-            height: 35px;
-            background: linear-gradient(180deg, #ffd700, #cc9900);
-            border-radius: 5px 5px 0 0;
+            height: 100%;
+            background: #e6b800; /* Yellow suit */
+            border-radius: 5px;
+            position: relative;
         }
-
-        .ff-head {
-            position: absolute;
-            bottom: 35px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 20px;
-            height: 20px;
-            background: #ffcc99;
-            border-radius: 50%;
-        }
-
+        
         .ff-helmet {
             position: absolute;
-            bottom: 50px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 25px;
-            height: 12px;
-            background: #dc143c;
-            border-radius: 5px 5px 0 0;
+            top: -10px;
+            left: -2px;
+            width: 34px;
+            height: 15px;
+            background: #d00;
+            border-radius: 10px 10px 0 0;
         }
 
-        .hose {
+        /* Вода */
+        .water-stream {
             position: absolute;
-            bottom: 20px;
-            left: 25px;
-            width: 40px;
-            height: 8px;
-            background: linear-gradient(90deg, #666, #888);
-            border-radius: 4px;
-            transform-origin: left center;
+            width: 5px;
+            height: 5px;
+            background: #00ffff;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 20;
         }
 
-        /* Instructions */
-        .instructions {
-            background: rgba(0,0,0,0.5);
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-top: 10px;
+        /* Кнопки управления */
+        .control-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background: #333;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
+        
+        .control-btn:hover { transform: translateY(-2px); filter: brightness(1.2); }
+        .control-btn:active { transform: translateY(0); }
 
-        .instructions h4 {
-            color: #ff6b35;
-            margin-bottom: 8px;
-        }
+        .btn-move { background: #444; }
+        .btn-action { background: #d00; }
+        .btn-tool { background: #e6b800; color: #000; }
+        .btn-water { background: #0077be; }
 
-        .instructions p {
-            color: #aaa;
-            font-size: 11px;
-            margin: 3px 0;
-        }
-
-        .key-hint {
-            display: inline-block;
-            background: #444;
-            padding: 2px 6px;
-            border-radius: 3px;
+        /* Логи */
+        .log-container {
+            flex: 1;
+            background: rgba(0,0,0,0.2);
+            border-radius: 5px;
+            overflow-y: auto;
+            padding: 5px;
+            font-size: 12px;
             font-family: monospace;
-            margin: 0 3px;
         }
+        .log-entry { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .log-crit { color: #ff4444; }
+        .log-good { color: #00ff88; }
+        .log-info { color: #88ccff; }
+
+        /* Модальные окна */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        .modal {
+            background: #1a1a2e;
+            border: 2px solid #ff6b35;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 0 30px rgba(255, 107, 53, 0.3);
+        }
+        .modal h2 { color: #ff6b35; margin-bottom: 15px; font-size: 24px; }
+        .modal p { margin-bottom: 20px; line-height: 1.5; color: #ccc; }
+        .modal-btn {
+            background: #ff6b35;
+            color: white;
+            padding: 10px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .modal-btn:hover { background: #ff8c61; }
+        .hidden { display: none; }
+
+        /* Инструкция клавиатуры */
+        .key-hint {
+            background: #eee;
+            color: #333;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 11px;
+            display: inline-block;
+            min-width: 18px;
+            text-align: center;
+            box-shadow: 0 2px 0 #999;
+        }
+
+        /* Гидрант */
+        .hydrant {
+            position: absolute;
+            bottom: 10%;
+            left: 10px;
+            width: 20px;
+            height: 30px;
+            background: #d00;
+            border-radius: 5px 5px 0 0;
+            z-index: 5;
+        }
+        .hydrant::before { content: ''; position: absolute; top: 5px; left: -5px; width: 30px; height: 5px; background: #999; }
+
     </style>
 </head>
 <body>
+
+    <!-- Модальное окно Старта -->
+    <div id="startModal" class="modal-overlay">
+        <div class="modal">
+            <h2>🚒 Пожарная Тревога!</h2>
+            <p>Добро пожаловать в симулятор пожарного.</p>
+            <p style="text-align: left; font-size: 14px;">
+                <span class="key-hint">A</span> <span class="key-hint">D</span> - Движение машины<br>
+                <span class="key-hint">Пробел</span> - Лить воду<br>
+                <span class="key-hint">W</span> <span class="key-hint">S</span> - Угол наклона пушки<br>
+                <span class="key-hint">E</span> - Спасти человека (если рядом)<br>
+                <span class="key-hint">R</span> - Заправить воду (у гидранта слева)<br>
+                <span class="key-hint">L</span> - Выдвинуть лестницу (для высоких этажей)
+            </p>
+            <button class="modal-btn" onclick="startGame()">Начать смену</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно Победы/Поражения -->
+    <div id="endModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2 id="endTitle">Миссия завершена</h2>
+            <p id="endMessage">Результат...</p>
+            <p id="endStats" style="font-weight: bold; color: #00ff88;"></p>
+            <button class="modal-btn" onclick="restartGame()">Следующий вызов</button>
+        </div>
+    </div>
+
     <div class="game-container">
-        <!-- Верхняя панель статистики -->
+        <!-- Статистика -->
         <div class="top-panel">
-            <div class="stat-box" id="water-stat">
+            <div class="stat-box" id="waterBox">
                 <div class="stat-label">💧 Вода</div>
-                <div class="stat-value" id="water-value">100%</div>
-                <div class="stat-bar">
-                    <div class="stat-bar-fill" id="water-bar" style="width: 100%; background: linear-gradient(90deg, #00bfff, #0080ff);"></div>
-                </div>
+                <div class="stat-value" id="waterVal">100%</div>
+                <div class="stat-bar"><div class="stat-bar-fill" id="waterBar" style="width: 100%; background: #00ccff;"></div></div>
             </div>
             <div class="stat-box">
-                <div class="stat-label">⏱️ Время</div>
-                <div class="stat-value" id="time-value">03:00</div>
-                <div class="stat-bar">
-                    <div class="stat-bar-fill" id="time-bar" style="width: 100%; background: linear-gradient(90deg, #00ff88, #00aa55);"></div>
-                </div>
+                <div class="stat-label">🔥 Уровень Огня</div>
+                <div class="stat-value" id="fireVal">0%</div>
+                <div class="stat-bar"><div class="stat-bar-fill" id="fireBar" style="width: 0%; background: #ff4444;"></div></div>
             </div>
             <div class="stat-box">
-                <div class="stat-label">🔥 Огонь</div>
-                <div class="stat-value" id="fire-value">0%</div>
-                <div class="stat-bar">
-                    <div class="stat-bar-fill" id="fire-bar" style="width: 0%; background: linear-gradient(90deg, #ff4500, #ff0000);"></div>
-                </div>
+                <div class="stat-label">⏱ Время</div>
+                <div class="stat-value" id="timeVal">02:00</div>
             </div>
             <div class="stat-box">
                 <div class="stat-label">👥 Спасено</div>
-                <div class="stat-value" id="rescued-value">0/0</div>
+                <div class="stat-value" id="rescuedVal">0</div>
             </div>
             <div class="stat-box">
                 <div class="stat-label">⭐ Очки</div>
-                <div class="stat-value" id="score-value">0</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">🏆 Уровень</div>
-                <div class="stat-value" id="level-value">1</div>
+                <div class="stat-value" id="scoreVal">0</div>
             </div>
         </div>
 
-        <!-- Основная зона -->
         <div class="main-area">
-            <!-- Левая панель -->
-            <div class="left-panel">
-                <div class="panel">
-                    <div class="panel-title">🛠️ Снаряжение</div>
-                    <div class="equipment-grid">
-                        <div class="equipment-item active" id="eq-hose" onclick="selectEquipment('hose')">
-                            <div class="equipment-icon">🚿</div>
-                            <div class="equipment-name">Шланг</div>
-                            <div class="equipment-key">[1]</div>
-                        </div>
-                        <div class="equipment-item" id="eq-axe" onclick="selectEquipment('axe')">
-                            <div class="equipment-icon">🪓</div>
-                            <div class="equipment-name">Топор</div>
-                            <div class="equipment-key">[2]</div>
-                        </div>
-                        <div class="equipment-item" id="eq-ladder" onclick="selectEquipment('ladder')">
-                            <div class="equipment-icon">🪜</div>
-                            <div class="equipment-name">Лестница</div>
-                            <div class="equipment-key">[3]</div>
-                        </div>
-                        <div class="equipment-item" id="eq-extinguisher" onclick="selectEquipment('extinguisher')">
-                            <div class="equipment-icon">🧯</div>
-                            <div class="equipment-name">Огнетуш.</div>
-                            <div class="equipment-key">[4]</div>
-                        </div>
-                    </div>
+            <!-- Левая панель: Управление -->
+            <div class="panel">
+                <div class="panel-title">Управление</div>
+                <button class="control-btn btn-move" onmousedown="startMove(-1)" onmouseup="stopMove()" onmouseleave="stopMove()">⬅ Влево (A)</button>
+                <button class="control-btn btn-move" onmousedown="startMove(1)" onmouseup="stopMove()" onmouseleave="stopMove()">Вправо (D) ➡</button>
+                <button class="control-btn btn-action" onmousedown="toggleWater(true)" onmouseup="toggleWater(false)" onmouseleave="toggleWater(false)">💦 Лить воду (Space)</button>
+                <div style="display: flex; gap: 5px;">
+                    <button class="control-btn btn-move" onclick="adjustAngle(5)" style="flex:1">⬆ Угол</button>
+                    <button class="control-btn btn-move" onclick="adjustAngle(-5)" style="flex:1">⬇ Угол</button>
                 </div>
-
-                <div class="panel">
-                    <div class="panel-title">🚒 Машина</div>
-                    <div class="control-buttons">
-                        <button class="control-btn btn-secondary" onclick="moveTruck('left')">◀ Влево [A]</button>
-                        <button class="control-btn btn-secondary" onclick="moveTruck('right')">Вправо [D] ▶</button>
-                        <button class="control-btn btn-primary" onclick="toggleLadder()">🪜 Лестница [L]</button>
-                        <button class="control-btn btn-success" onclick="refillWater()">💧 Заправка [R]</button>
-                    </div>
-                </div>
-
-                <div class="panel">
-                    <div class="panel-title">⚡ Действия</div>
-                    <div class="control-buttons">
-                        <button class="control-btn btn-danger" onclick="toggleWater()">🚿 Вода [SPACE]</button>
-                        <button class="control-btn btn-success" onclick="rescuePerson()">🏃 Спасение [E]</button>
-                    </div>
-                </div>
-
-                <div class="instructions">
-                    <h4>📋 Управление</h4>
-                    <p><span class="key-hint">A/D</span> - движение машины</p>
-                    <p><span class="key-hint">↑/↓</span> - направление воды</p>
-                    <p><span class="key-hint">SPACE</span> - подача воды</p>
-                    <p><span class="key-hint">E</span> - спасение людей</p>
-                    <p><span class="key-hint">L</span> - выдвинуть лестницу</p>
-                    <p><span class="key-hint">Клик</span> - тушить окно</p>
-                </div>
+                <button class="control-btn btn-tool" onclick="toggleLadder()">🪜 Лестница (L)</button>
+                <button class="control-btn btn-tool" onclick="attemptRescue()">🏃 Спасти (E)</button>
+                <button class="control-btn btn-water" onclick="refillWater()">🚰 Заправить (R)</button>
             </div>
 
             <!-- Игровое поле -->
-            <div class="game-field" id="game-field">
-                <div class="smoke" id="smoke-container"></div>
+            <div class="game-field" id="gameField">
+                <div class="hydrant"></div>
                 
-                <!-- Пожарная машина -->
-                <div class="fire-truck" id="fire-truck">
-                    <div class="ladder" id="ladder"></div>
-                    <div class="truck-cabin">
+                <!-- Здания генерируются JS -->
+                <div id="buildingsContainer"></div>
+
+                <div class="firefighter" id="firefighter">
+                    <div class="ff-body"></div>
+                    <div class="ff-helmet"></div>
+                </div>
+
+                <div class="truck-container" id="truck">
+                    <div class="ladder-base" id="ladder"></div>
+                    <div class="truck-cab">
                         <div class="truck-window"></div>
                     </div>
-                    <div class="truck-body"></div>
-                    <div class="truck-wheel front"></div>
-                    <div class="truck-wheel back"></div>
-                    <div class="truck-light left"></div>
-                    <div class="truck-light right"></div>
-                </div>
-
-                <!-- Пожарный -->
-                <div class="firefighter" id="firefighter">
-                    <div class="ff-helmet"></div>
-                    <div class="ff-head"></div>
-                    <div class="ff-body"></div>
-                    <div class="hose" id="hose"></div>
-                </div>
-
-                <!-- Здания будут добавлены динамически -->
-            </div>
-
-            <!-- Правая панель -->
-            <div class="right-panel">
-                <div class="mission-info">
-                    <div class="mission-title">📋 Миссия <span id="mission-number">1</span></div>
-                    <div class="mission-desc" id="mission-desc">
-                        Потушите пожар в жилом доме и спасите всех жителей до прибытия подкрепления!
-                    </div>
-                    <div class="objectives">
-                        <div class="objective" id="obj-fire">
-                            <div class="objective-check">○</div>
-                            <span>Потушить весь огонь</span>
-                        </div>
-                        <div class="objective" id="obj-rescue">
-                            <div class="objective-check">○</div>
-                            <span>Спасти всех людей</span>
-                        </div>
-                        <div class="objective" id="obj-time">
-                            <div class="objective-check">○</div>
-                            <span>Уложиться в время</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="panel log-panel">
-                    <div class="panel-title">📜 Журнал</div>
-                    <div id="log-container">
-                        <div class="log-entry">Симулятор загружен. Удачи!</div>
-                    </div>
-                </div>
-
-                <div class="panel">
-                    <div class="panel-title">🎮 Игра</div>
-                    <div class="control-buttons">
-                        <button class="control-btn btn-primary" onclick="startMission()">▶ Начать миссию</button>
-                        <button class="control-btn btn-secondary" onclick="pauseGame()">⏸ Пауза [P]</button>
-                        <button class="control-btn btn-secondary" onclick="restartMission()">🔄 Рестарт</button>
-                    </div>
+                    <div class="fire-truck"></div>
+                    <div class="wheel w-front"></div>
+                    <div class="wheel w-back"></div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Модальные окна -->
-    <div class="modal" id="modal-start">
-        <div class="modal-content">
-            <div class="modal-title">🚒 Симулятор Пожарника</div>
-            <div class="modal-text">
-                Добро пожаловать в реалистичный симулятор пожарного! 
-                Ваша задача - тушить пожары и спасать людей.
-            </div>
-            <button class="control-btn btn-primary" onclick="startGame()" style="width: 100%;">
-                🔥 Начать игру
-            </button>
-        </div>
-    </div>
-
-    <div class="modal" id="modal-win">
-        <div class="modal-content">
-            <div class="modal-title">🎉 Миссия выполнена!</div>
-            <div class="modal-text" id="win-text">Отличная работа!</div>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-item-value" id="final-score">0</div>
-                    <div class="stat-item-label">Очков</div>
+            <!-- Правая панель: Логи и Инфо -->
+            <div class="panel">
+                <div class="panel-title">Рация (Лог)</div>
+                <div class="log-container" id="gameLog">
+                    <div class="log-entry">Ожидание вызова...</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-item-value" id="final-rescued">0</div>
-                    <div class="stat-item-label">Спасено</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-item-value" id="final-time">0:00</div>
-                    <div class="stat-item-label">Время</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-item-value" id="final-water">0%</div>
-                    <div class="stat-item-label">Воды осталось</div>
+                <div class="panel-title" style="margin-top: 10px;">Статус</div>
+                <div style="font-size: 12px; color: #aaa;">
+                    Уровень: <span id="levelDisplay" style="color: white;">1</span><br>
+                    Людей в здании: <span id="peopleCount" style="color: white;">0</span>
                 </div>
             </div>
-            <button class="control-btn btn-primary" onclick="nextLevel()" style="width: 100%;">
-                ➡️ Следующий уровень
-            </button>
-        </div>
-    </div>
-
-    <div class="modal" id="modal-lose">
-        <div class="modal-content">
-            <div class="modal-title">💔 Миссия провалена</div>
-            <div class="modal-text" id="lose-text">Не сдавайтесь! Попробуйте ещё раз.</div>
-            <button class="control-btn btn-danger" onclick="restartMission()" style="width: 100%;">
-                🔄 Попробовать снова
-            </button>
-        </div>
-    </div>
-
-    <div class="modal" id="modal-pause">
-        <div class="modal-content">
-            <div class="modal-title">⏸ Пауза</div>
-            <div class="modal-text">Игра приостановлена</div>
-            <button class="control-btn btn-primary" onclick="resumeGame()" style="width: 100%;">
-                ▶ Продолжить
-            </button>
         </div>
     </div>
 
     <script>
-        // Игровые переменные
-        let gameState = {
-            water: 100,
-            maxWater: 100,
-            time: 180,
-            maxTime: 180,
-            score: 0,
-            level: 1,
-            rescued: 0,
-            totalPeople: 0,
-            firePercent: 0,
+        // Конфигурация и Состояние игры
+        const state = {
             isPlaying: false,
-            isPaused: false,
-            isWatering: false,
-            selectedEquipment: 'hose',
-            truckPosition: 50,
-            firefighterPosition: 100,
+            level: 1,
+            score: 0,
+            time: 120, // секунды
+            maxTime: 120,
+            water: 100,
+            rescued: 0,
+            peopleTotal: 0,
+            firePercentage: 0,
+            
+            truckX: 50,
             ladderExtended: false,
-            waterAngle: 45,
+            hoseAngle: 45, // градусы
+            
+            keys: {},
+            moveInterval: null,
+            waterInterval: null,
+            gameLoopInterval: null,
+            
             buildings: [],
-            windows: [],
-            people: []
+            windows: [], // {element, x, y, fireHealth, hasPerson, isBurnt}
         };
 
-        let gameLoop = null;
-        let waterInterval = null;
+        const ELEMENTS = {
+            truck: document.getElementById('truck'),
+            firefighter: document.getElementById('firefighter'),
+            ladder: document.getElementById('ladder'),
+            wheels: document.querySelectorAll('.wheel'),
+            field: document.getElementById('gameField'),
+            buildingsContainer: document.getElementById('buildingsContainer'),
+            waterBar: document.getElementById('waterBar'),
+            waterVal: document.getElementById('waterVal'),
+            waterBox: document.getElementById('waterBox'),
+            fireBar: document.getElementById('fireBar'),
+            fireVal: document.getElementById('fireVal'),
+            timeVal: document.getElementById('timeVal'),
+            rescuedVal: document.getElementById('rescuedVal'),
+            scoreVal: document.getElementById('scoreVal'),
+            log: document.getElementById('gameLog'),
+            peopleCount: document.getElementById('peopleCount'),
+            levelDisplay: document.getElementById('levelDisplay')
+        };
 
-        // Инициализация
-        document.addEventListener('DOMContentLoaded', () => {
-            showModal('modal-start');
-            setupKeyboardControls();
-        });
-
-        function setupKeyboardControls() {
-            document.addEventListener('keydown', (e) => {
-                if (!gameState.isPlaying || gameState.isPaused) return;
-
-                switch(e.key.toLowerCase()) {
-                    case 'a':
-                        moveTruck('left');
-                        break;
-                    case 'd':
-                        moveTruck('right');
-                        break;
-                    case ' ':
-                        e.preventDefault();
-                        if (!gameState.isWatering) toggleWater();
-                        break;
-                    case 'e':
-                        rescuePerson();
-                        break;
-                    case 'l':
-                        toggleLadder();
-                        break;
-                    case 'r':
-                        refillWater();
-                        break;
-                    case 'p':
-                        pauseGame();
-                        break;
-                    case 'arrowup':
-                        gameState.waterAngle = Math.min(80, gameState.waterAngle + 5);
-                        updateHoseAngle();
-                        break;
-                    case 'arrowdown':
-                        gameState.waterAngle = Math.max(10, gameState.waterAngle - 5);
-                        updateHoseAngle();
-                        break;
-                    case '1':
-                        selectEquipment('hose');
-                        break;
-                    case '2':
-                        selectEquipment('axe');
-                        break;
-                    case '3':
-                        selectEquipment('ladder');
-                        break;
-                    case '4':
-                        selectEquipment('extinguisher');
-                        break;
-                }
-            });
-
-            document.addEventListener('keyup', (e) => {
-                if (e.key === ' ' && gameState.isWatering) {
-                    toggleWater();
-                }
-            });
-        }
-
-        function showModal(modalId) {
-            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
-            document.getElementById(modalId).classList.add('active');
-        }
-
-        function hideModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
-        }
+        // --- Инициализация ---
 
         function startGame() {
-            hideModal('modal-start');
-            startMission();
+            document.getElementById('startModal').classList.add('hidden');
+            state.level = 1;
+            state.score = 0;
+            startLevel();
         }
 
-        function startMission() {
-            resetGameState();
-            generateBuildings();
-            gameState.isPlaying = true;
-            gameLoop = setInterval(updateGame, 100);
-            addLog('🚨 Вызов принят! Выезжаем на пожар!', 'fire');
+        function restartGame() {
+            document.getElementById('endModal').classList.add('hidden');
+            startLevel();
         }
 
-        function resetGameState() {
-            const level = gameState.level;
-            gameState = {
-                ...gameState,
-                water: 100,
-                time: Math.max(120, 180 - (level - 1) * 15),
-                maxTime: Math.max(120, 180 - (level - 1) * 15),
-                rescued: 0,
-                firePercent: 0,
-                isPlaying: false,
-                isPaused: false,
-                isWatering: false,
-                truckPosition: 50,
-                firefighterPosition: 100,
-                ladderExtended: false,
-                waterAngle: 45,
-                buildings: [],
-                windows: [],
-                people: []
-            };
+        function startLevel() {
+            // Сброс состояния
+            state.isPlaying = true;
+            state.time = Math.max(60, 130 - state.level * 10);
+            state.maxTime = state.time;
+            state.water = 100;
+            state.rescued = 0;
+            state.truckX = 60;
+            state.ladderExtended = false;
+            state.hoseAngle = 45;
+            
+            ELEMENTS.ladder.classList.remove('active');
+            updateTruckPosition();
+
+            // Генерация уровня
+            generateLevel();
+            
+            // Запуск циклов
+            clearInterval(state.gameLoopInterval);
+            state.gameLoopInterval = setInterval(gameLoop, 1000); // Таймер и огонь
+            requestAnimationFrame(renderLoop); // Плавные анимации
+
+            log(`🚨 Уровень ${state.level} начат! Потушите пожар!`, 'log-crit');
             updateUI();
         }
 
-        function generateBuildings() {
-            const gameField = document.getElementById('game-field');
-            const level = gameState.level;
-            
-            // Очистить старые здания
-            document.querySelectorAll('.building').forEach(b => b.remove());
-            
-            const buildingCount = Math.min(3, 1 + Math.floor(level / 2));
-            const fieldWidth = gameField.offsetWidth;
-            const buildingWidth = Math.floor((fieldWidth - 100) / buildingCount) - 20;
-            
-            for (let b = 0; b < buildingCount; b++) {
-                const floors = 2 + Math.min(4, Math.floor(level / 2) + Math.floor(Math.random() * 2));
+        function generateLevel() {
+            ELEMENTS.buildingsContainer.innerHTML = '';
+            state.windows = [];
+            state.peopleTotal = 0;
+
+            const fieldWidth = ELEMENTS.field.clientWidth;
+            const numBuildings = 1 + Math.floor(Math.random() * 2); // 1-2 здания
+            const startX = 250; // Отступ от гидранта
+
+            for(let b=0; b < numBuildings; b++) {
                 const building = document.createElement('div');
                 building.className = 'building';
-                building.style.width = buildingWidth + 'px';
-                building.style.height = (floors * 55 + 30) + 'px';
-                building.style.left = (50 + b * (buildingWidth + 20)) + 'px';
+                const floors = 2 + Math.floor(Math.random() * (2 + state.level/2)); // Этажность растет
+                const width = 120 + Math.random() * 60;
                 
-                const roof = document.createElement('div');
-                roof.className = 'building-roof';
-                building.appendChild(roof);
+                building.style.width = width + 'px';
+                building.style.left = (startX + b * (width + 50)) + 'px';
                 
-                for (let f = 0; f < floors; f++) {
+                // Создание этажей и окон
+                for(let f=0; f < floors; f++) {
                     const floor = document.createElement('div');
                     floor.className = 'floor';
                     
-                    const windowCount = Math.floor(buildingWidth / 50);
-                    for (let w = 0; w < windowCount; w++) {
-                        const window = document.createElement('div');
-                        window.className = 'window';
-                        window.dataset.building = b;
-                        window.dataset.floor = f;
-                        window.dataset.window = w;
-                        window.dataset.fire = '0';
+                    const winsPerFloor = 2 + Math.floor(Math.random() * 2);
+                    for(let w=0; w < winsPerFloor; w++) {
+                        const winDiv = document.createElement('div');
+                        winDiv.className = 'window';
                         
-                        // Случайный огонь в зависимости от уровня
-                        if (Math.random() < 0.3 + level * 0.05) {
-                            window.dataset.fire = String(50 + Math.random() * 50);
-                            window.classList.add('on-fire');
-                            addFireParticles(window);
+                        // Данные окна
+                        const winData = {
+                            id: `w-${b}-${f}-${w}`,
+                            element: winDiv,
+                            floor: f,
+                            fireHealth: 0,
+                            hasPerson: false,
+                            isBurnt: false,
+                            buildingX: startX + b * (width + 50),
+                            buildingWidth: width
+                        };
+
+                        // Шанс огня
+                        if(Math.random() < 0.4 + (state.level * 0.05)) {
+                            igniteWindow(winData, 50 + Math.random() * 50);
                         }
-                        
-                        // Случайные люди
-                        if (Math.random() < 0.2 + level * 0.03) {
-                            const person = document.createElement('div');
-                            person.className = 'person';
-                            person.textContent = '🙋';
-                            person.dataset.rescued = 'false';
-                            window.appendChild(person);
-                            gameState.totalPeople++;
-                            gameState.people.push({
-                                element: person,
-                                window: window,
-                                building: b,
-                                floor: f
-                            });
+
+                        // Шанс человека (только если не горит сильно сразу)
+                        if(Math.random() < 0.3 && winData.fireHealth < 80) {
+                            addPerson(winData);
                         }
-                        
-                        window.addEventListener('click', () => waterWindow(window));
-                        floor.appendChild(window);
-                        gameState.windows.push(window);
+
+                        winDiv.dataset.id = winData.id;
+                        floor.appendChild(winDiv);
+                        state.windows.push(winData);
                     }
                     building.appendChild(floor);
                 }
-                
-                gameField.appendChild(building);
-                gameState.buildings.push(building);
+                ELEMENTS.buildingsContainer.appendChild(building);
             }
+
+            // Кэширование координат окон для коллизий
+            setTimeout(() => {
+                state.windows.forEach(w => {
+                    const rect = w.element.getBoundingClientRect();
+                    const fieldRect = ELEMENTS.field.getBoundingClientRect();
+                    w.x = rect.left - fieldRect.left + rect.width/2;
+                    w.y = rect.top - fieldRect.top + rect.height/2;
+                });
+            }, 100);
             
-            updateFirePercent();
-            updateRescuedCount();
-            document.getElementById('mission-number').textContent = level;
+            updatePeopleCount();
         }
 
-        function addFireParticles(window) {
-            const particles = document.createElement('div');
-            particles.className = 'fire-particles';
-            for (let i = 0; i < 3; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'fire-particle';
-                particle.style.left = (Math.random() * 20 - 10) + 'px';
-                particle.style.animationDelay = (Math.random() * 0.5) + 's';
-                particles.appendChild(particle);
-            }
-            window.appendChild(particles);
-        }
+        // --- Игровая Логика ---
 
-        function updateGame() {
-            if (!gameState.isPlaying || gameState.isPaused) return;
+        function gameLoop() {
+            if(!state.isPlaying) return;
 
             // Таймер
-            gameState.time -= 0.1;
-            if (gameState.time <= 0) {
-                gameOver('time');
+            state.time--;
+            if(state.time <= 0) {
+                endGame(false, "Время вышло! Здание обрушилось.");
                 return;
             }
 
-            // Распространение огня
-            spreadFire();
-            
-            // Проверка состояния людей в огне
-            checkPeopleInFire();
-            
-            // Обновление UI
-            updateUI();
+            // Логика Огня
+            let totalFire = 0;
+            let burningWindows = 0;
+
+            state.windows.forEach(w => {
+                if(w.isBurnt) return;
+
+                if(w.fireHealth > 0) {
+                    // Огонь растет
+                    w.fireHealth += 1 + (state.level * 0.2);
+                    burningWindows++;
+                    
+                    // Если огонь > 100, окно сгорает
+                    if(w.fireHealth >= 100 && !w.isBurnt) {
+                        w.isBurnt = true;
+                        w.fireHealth = 0;
+                        w.element.classList.remove('on-fire');
+                        w.element.classList.add('burnt');
+                        w.element.innerHTML = ''; // Удалить человека
+                        if(w.hasPerson) {
+                            log("💀 Человек погиб в огне!", 'log-crit');
+                            state.peopleTotal--; // Убираем из общего числа живых
+                            updatePeopleCount();
+                        }
+                    } else {
+                        // Визуализация интенсивности
+                        w.element.style.opacity = 0.5 + (w.fireHealth/200);
+                    }
+
+                    // Шанс распространения на соседей
+                    if(w.fireHealth > 60 && Math.random() < 0.05) {
+                        spreadFire(w);
+                    }
+                }
+                totalFire += w.fireHealth;
+            });
+
+            // Обновление статистики огня
+            state.firePercentage = Math.min(100, Math.floor((burningWindows / state.windows.length) * 100));
             
             // Проверка победы
-            checkWinCondition();
-        }
+            const peopleLeft = state.windows.filter(w => w.hasPerson).length;
+            const fireLeft = state.windows.filter(w => w.fireHealth > 0).length;
 
-        function spreadFire() {
-            if (Math.random() > 0.98) { // Огонь распространяется редко
-                const onFireWindows = gameState.windows.filter(w => parseFloat(w.dataset.fire) > 0);
-                if (onFireWindows.length > 0) {
-                    const sourceWindow = onFireWindows[Math.floor(Math.random() * onFireWindows.length)];
-                    const building = parseInt(sourceWindow.dataset.building);
-                    const floor = parseInt(sourceWindow.dataset.floor);
-                    const windowNum = parseInt(sourceWindow.dataset.window);
-                    
-                    // Найти соседнее окно
-                    const neighbors = gameState.windows.filter(w => {
-                        const b = parseInt(w.dataset.building);
-                        const f = parseInt(w.dataset.floor);
-                        const wn = parseInt(w.dataset.window);
-                        return b === building && 
-                               parseFloat(w.dataset.fire) === 0 &&
-                               (Math.abs(f - floor) <= 1 && Math.abs(wn - windowNum) <= 1);
-                    });
-                    
-                    if (neighbors.length > 0 && Math.random() > 0.7) {
-                        const target = neighbors[Math.floor(Math.random() * neighbors.length)];
-                        target.dataset.fire = '30';
-                        target.classList.add('on-fire');
-                        addFireParticles(target);
-                        addLog('🔥 Огонь распространяется!', 'warning');
-                    }
-                }
+            if(peopleLeft === 0 && fireLeft === 0) {
+                endGame(true, "Отличная работа! Пожар потушен.");
+            } else if (peopleLeft === 0 && state.rescued === 0 && state.peopleTotal === 0 && state.windows.length > 0) {
+                 // Если все сгорели или никого не было, но огонь потушен
+                 if(fireLeft === 0) endGame(true, "Пожар потушен, но спасать было некого.");
             }
-            
-            // Усиление огня
-            gameState.windows.forEach(w => {
-                const fire = parseFloat(w.dataset.fire);
-                if (fire > 0 && fire < 100) {
-                    w.dataset.fire = String(Math.min(100, fire + 0.1));
-                }
-            });
-            
-            updateFirePercent();
+
+            updateUI();
         }
 
-        function checkPeopleInFire() {
-            gameState.people.forEach(p => {
-                if (p.element.dataset.rescued === 'false') {
-                    const fire = parseFloat(p.window.dataset.fire);
-                    if (fire >= 100) {
-                        // Человек погиб
-                        p.element.textContent = '💀';
-                        p.element.dataset.rescued = 'dead';
-                        addLog('💔 Не удалось спасти человека...', 'fire');
-                    }
-                }
-            });
-        }
-
-        function updateFirePercent() {
-            const totalFire = gameState.windows.reduce((sum, w) => sum + parseFloat(w.dataset.fire), 0);
-            const maxFire = gameState.windows.length * 100;
-            gameState.firePercent = Math.round((totalFire / maxFire) * 100);
-        }
-
-        function updateUI() {
-            // Вода
-            document.getElementById('water-value').textContent = Math.round(gameState.water) + '%';
-            document.getElementById('water-bar').style.width = gameState.water + '%';
-            document.getElementById('water-stat').classList.toggle('alert', gameState.water < 20);
-
-            // Время
-            const minutes = Math.floor(gameState.time / 60);
-            const seconds = Math.floor(gameState.time % 60);
-            document.getElementById('time-value').textContent = 
-                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            document.getElementById('time-bar').style.width = (gameState.time / gameState.maxTime * 100) + '%';
-            
-            // Огонь
-            document.getElementById('fire-value').textContent = gameState.firePercent + '%';
-            document.getElementById('fire-bar').style.width = gameState.firePercent + '%';
-
-            // Спасенные
-            updateRescuedCount();
-
-            // Очки
-            document.getElementById('score-value').textContent = gameState.score;
-            document.getElementById('level-value').textContent = gameState.level;
-
-            // Objectives
-            const allFireOut = gameState.windows.every(w => parseFloat(w.dataset.fire) === 0);
-            const allRescued = gameState.people.every(p => p.element.dataset.rescued === 'true');
-            
-            updateObjective('obj-fire', allFireOut);
-            updateObjective('obj-rescue', allRescued || gameState.totalPeople === 0);
-            updateObjective('obj-time', gameState.time > 0);
-        }
-
-        function updateRescuedCount() {
-            const rescued = gameState.people.filter(p => p.element.dataset.rescued === 'true').length;
-            gameState.rescued = rescued;
-            document.getElementById('rescued-value').textContent = `${rescued}/${gameState.totalPeople}`;
-        }
-
-        function updateObjective(id, completed) {
-            const obj = document.getElementById(id);
-            obj.classList.toggle('completed', completed);
-            obj.querySelector('.objective-check').textContent = completed ? '✓' : '○';
-        }
-
-        function moveTruck(direction) {
-            const gameField = document.getElementById('game-field');
-            const maxPos = gameField.offsetWidth - 130;
-            
-            if (direction === 'left') {
-                gameState.truckPosition = Math.max(10, gameState.truckPosition - 30);
-            } else {
-                gameState.truckPosition = Math.min(maxPos, gameState.truckPosition + 30);
+        function igniteWindow(win, health) {
+            if(win.isBurnt) return;
+            win.fireHealth = health;
+            win.element.classList.add('on-fire');
+            if(!win.element.querySelector('.fire-particle')) {
+                const fireDiv = document.createElement('div');
+                fireDiv.className = 'fire-particle';
+                win.element.appendChild(fireDiv);
             }
+        }
+
+        function spreadFire(sourceWin) {
+            // Найти случайное соседнее окно (простая логика по индексу в массиве не сработает идеально, но для игры пойдет)
+            // Лучше найти по координатам
+            const neighbors = state.windows.filter(w => 
+                !w.isBurnt && w.fireHealth <= 0 && 
+                Math.abs(w.x - sourceWin.x) < 100 && Math.abs(w.y - sourceWin.y) < 80
+            );
             
-            document.getElementById('fire-truck').style.left = gameState.truckPosition + 'px';
-            document.getElementById('firefighter').style.left = (gameState.truckPosition + 50) + 'px';
+            if(neighbors.length > 0) {
+                const target = neighbors[Math.floor(Math.random() * neighbors.length)];
+                igniteWindow(target, 10);
+                log("🔥 Огонь распространяется!", 'log-crit');
+            }
+        }
+
+        function addPerson(win) {
+            win.hasPerson = true;
+            state.peopleTotal++;
+            const p = document.createElement('div');
+            p.className = 'person';
+            p.innerText = '🙆‍♂️';
+            win.element.appendChild(p);
+        }
+
+        // --- Действия Игрока ---
+
+        function startMove(dir) {
+            if(!state.isPlaying) return;
+            if(state.moveInterval) return;
+            state.moveInterval = setInterval(() => {
+                const newX = state.truckX + (dir * 4);
+                // Ограничения поля
+                if(newX > 0 && newX < ELEMENTS.field.clientWidth - 140) {
+                    state.truckX = newX;
+                    updateTruckPosition();
+                }
+            }, 16);
+            ELEMENTS.wheels.forEach(w => w.classList.add('moving'));
+        }
+
+        function stopMove() {
+            clearInterval(state.moveInterval);
+            state.moveInterval = null;
+            ELEMENTS.wheels.forEach(w => w.classList.remove('moving'));
+        }
+
+        function updateTruckPosition() {
+            ELEMENTS.truck.style.left = state.truckX + 'px';
+            // Пожарный двигается с машиной
+            ELEMENTS.firefighter.style.left = (state.truckX + 80) + 'px';
         }
 
         function toggleLadder() {
-            gameState.ladderExtended = !gameState.ladderExtended;
-            document.getElementById('ladder').classList.toggle('extended', gameState.ladderExtended);
-            addLog(gameState.ladderExtended ? '🪜 Лестница выдвинута' : '🪜 Лестница убрана', 'water');
-        }
-
-        function selectEquipment(type) {
-            gameState.selectedEquipment = type;
-            document.querySelectorAll('.equipment-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            document.getElementById('eq-' + type).classList.add('active');
-        }
-
-        function toggleWater() {
-            gameState.isWatering = !gameState.isWatering;
-            
-            if (gameState.isWatering && gameState.water > 0) {
-                waterInterval = setInterval(() => {
-                    if (gameState.water > 0) {
-                        gameState.water = Math.max(0, gameState.water - 0.5);
-                        createWaterEffect();
-                        
-                        // Автоматическое тушение ближайшего окна
-                        autoExtinguish();
-                    } else {
-                        toggleWater();
-                        addLog('💧 Вода закончилась!', 'warning');
-                    }
-                }, 50);
+            if(!state.isPlaying) return;
+            state.ladderExtended = !state.ladderExtended;
+            if(state.ladderExtended) {
+                ELEMENTS.ladder.classList.add('active');
+                log("Лестница выдвинута.", 'log-info');
             } else {
-                clearInterval(waterInterval);
+                ELEMENTS.ladder.classList.remove('active');
+                log("Лестница убрана.", 'log-info');
             }
         }
 
-        function createWaterEffect() {
-            const firefighter = document.getElementById('firefighter');
-            const rect = firefighter.getBoundingClientRect();
-            const gameField = document.getElementById('game-field');
-            const fieldRect = gameField.getBoundingClientRect();
-            
-            for (let i = 0; i < 3; i++) {
-                const drop = document.createElement('div');
-                drop.className = 'water-drop';
-                drop.style.left = (rect.left - fieldRect.left + 60 + Math.random() * 20) + 'px';
-                drop.style.top = (rect.top - fieldRect.top - 30) + 'px';
-                
-                const angle = gameState.waterAngle * Math.PI / 180;
-                const speed = 5 + Math.random() * 3;
-                drop.style.transform = `translate(${Math.cos(angle) * speed * 10}px, ${-Math.sin(angle) * speed * 10}px)`;
-                
-                gameField.appendChild(drop);
-                
-                setTimeout(() => drop.remove(), 500);
+        function adjustAngle(delta) {
+            state.hoseAngle = Math.min(90, Math.max(0, state.hoseAngle + delta));
+            log(`Угол: ${state.hoseAngle}°`, 'log-info');
+        }
+
+        function toggleWater(active) {
+            if(!state.isPlaying) return;
+            if(active && !state.waterInterval) {
+                if(state.water <= 0) {
+                    log("⚠ Бак пуст! Нужна заправка (R)", 'log-crit');
+                    return;
+                }
+                state.waterInterval = setInterval(shootWater, 50);
+            } else if (!active && state.waterInterval) {
+                clearInterval(state.waterInterval);
+                state.waterInterval = null;
             }
         }
 
-        function autoExtinguish() {
-            const firefighter = document.getElementById('firefighter');
-            const ffRect = firefighter.getBoundingClientRect();
+        function shootWater() {
+            if(state.water <= 0) {
+                toggleWater(false);
+                return;
+            }
+
+            state.water -= 0.2;
             
-            gameState.windows.forEach(window => {
-                const wRect = window.getBoundingClientRect();
-                const distance = Math.sqrt(
-                    Math.pow(ffRect.left - wRect.left, 2) + 
-                    Math.pow(ffRect.top - wRect.top, 2)
-                );
-                
-                if (distance < 200) {
-                    const fire = parseFloat(window.dataset.fire);
-                    if (fire > 0) {
-                        const reduction = (200 - distance) / 200 * 2;
-                        const newFire = Math.max(0, fire - reduction);
-                        window.dataset.fire = String(newFire);
+            // Визуализация струи
+            const stream = document.createElement('div');
+            stream.className = 'water-stream';
+            
+            // Начальная позиция (у пожарного)
+            const ffRect = ELEMENTS.firefighter.getBoundingClientRect();
+            const fieldRect = ELEMENTS.field.getBoundingClientRect();
+            
+            const startX = ffRect.left - fieldRect.left + 15;
+            const startY = ffRect.top - fieldRect.top;
+            
+            stream.style.left = startX + 'px';
+            stream.style.top = startY + 'px';
+            
+            ELEMENTS.field.appendChild(stream);
+
+            // Физика полета воды
+            const angleRad = state.hoseAngle * (Math.PI / 180);
+            const power = 15;
+            let velocityX = Math.cos(angleRad) * power;
+            let velocityY = -Math.sin(angleRad) * power;
+            
+            let posX = startX;
+            let posY = startY;
+
+            const flyInterval = setInterval(() => {
+                posX += velocityX;
+                posY += velocityY;
+                velocityY += 0.8; // Гравитация
+
+                stream.style.left = posX + 'px';
+                stream.style.top = posY + 'px';
+
+                // Коллизия с окнами
+                checkWaterCollision(posX, posY, stream, flyInterval);
+
+                // Удаление если улетело
+                if(posY > fieldRect.height || posX > fieldRect.width) {
+                    clearInterval(flyInterval);
+                    if(stream.parentNode) stream.parentNode.removeChild(stream);
+                }
+            }, 20);
+
+            updateUI();
+        }
+
+        function checkWaterCollision(x, y, streamEl, interval) {
+            // Простой хитбокс воды
+            for(let w of state.windows) {
+                if(w.fireHealth > 0) {
+                    // Расстояние между каплей и центром окна
+                    const dist = Math.sqrt(Math.pow(x - w.x, 2) + Math.pow(y - w.y, 2));
+                    if(dist < 30) {
+                        // Попали!
+                        w.fireHealth -= 2;
+                        state.score += 1;
                         
-                        if (newFire === 0) {
-                            window.classList.remove('on-fire');
-                            window.classList.add('saved');
-                            window.querySelectorAll('.fire-particles').forEach(p => p.remove());
-                            gameState.score += 10;
-                            addLog('✅ Огонь потушен!', 'rescue');
+                        // Визуальный эффект попадания
+                        if(w.fireHealth <= 0) {
+                            w.fireHealth = 0;
+                            w.element.classList.remove('on-fire');
+                            w.element.innerHTML = w.hasPerson ? '<div class="person">🙆‍♂️</div>' : '';
+                            log("Огонь потушен!", 'log-good');
+                            state.score += 50;
                         }
+                        
+                        // Удаляем каплю
+                        clearInterval(interval);
+                        if(streamEl.parentNode) streamEl.parentNode.removeChild(streamEl);
+                        return;
                     }
                 }
-            });
-        }
-
-        function waterWindow(window) {
-            if (!gameState.isPlaying || gameState.water <= 0) return;
-            
-            const fire = parseFloat(window.dataset.fire);
-            if (fire > 0) {
-                gameState.water = Math.max(0, gameState.water - 5);
-                const newFire = Math.max(0, fire - 25);
-                window.dataset.fire = String(newFire);
-                
-                if (newFire === 0) {
-                    window.classList.remove('on-fire');
-                    window.classList.add('saved');
-                    window.querySelectorAll('.fire-particles').forEach(p => p.remove());
-                    gameState.score += 15;
-                    addLog('✅ Огонь потушен кликом!', 'rescue');
-                }
-                
-                updateFirePercent();
             }
         }
 
-        function rescuePerson() {
-            if (!gameState.isPlaying) return;
-            
-            const firefighter = document.getElementById('firefighter');
-            const ffRect = firefighter.getBoundingClientRect();
-            
-            let rescued = false;
-            gameState.people.forEach(p => {
-                if (p.element.dataset.rescued === 'false') {
-                    const wRect = p.window.getBoundingClientRect();
-                    const distance = Math.sqrt(
-                        Math.pow(ffRect.left - wRect.left, 2) + 
-                        Math.pow(ffRect.top - wRect.top, 2)
-                    );
+        function attemptRescue() {
+            if(!state.isPlaying) return;
+
+            // Позиция пожарного
+            const ffX = state.truckX + 80;
+            const rescueRange = 40; // По горизонтали
+            let rescuedNow = false;
+
+            state.windows.forEach(w => {
+                if(w.hasPerson && !w.isBurnt) {
+                    const horizontalDist = Math.abs(w.x - ffX);
                     
-                    // Можно спасти если близко и лестница выдвинута (для верхних этажей)
-                    const floor = parseInt(p.window.dataset.floor);
-                    const canRescue = distance < 250 && (floor < 2 || gameState.ladderExtended);
-                    
-                    if (canRescue && parseFloat(p.window.dataset.fire) < 50) {
-                        p.element.dataset.rescued = 'true';
-                        p.element.textContent = '✅';
-                        p.element.style.animation = 'none';
-                        gameState.score += 50;
-                        rescued = true;
-                        addLog('🦸 Человек спасён! +50 очков', 'rescue');
+                    // Логика спасения:
+                    // 0 этаж: можно спасти всегда, если близко
+                    // Выше 0: нужна лестница (ladderExtended) и позиция
+                    const reachCondition = (w.floor === 0) || (w.floor > 0 && state.ladderExtended);
+
+                    if(horizontalDist < rescueRange && reachCondition) {
+                        // Спасаем
+                        w.hasPerson = false;
+                        w.element.querySelector('.person').remove();
+                        w.element.classList.add('saved');
+                        
+                        state.rescued++;
+                        state.score += 200;
+                        log("✅ Человек спасен!", 'log-good');
+                        rescuedNow = true;
+                        updateUI();
+                        updatePeopleCount();
                     }
                 }
             });
-            
-            if (!rescued) {
-                addLog('⚠️ Рядом нет людей для спасения', 'warning');
+
+            if(!rescuedNow) {
+                if(!state.ladderExtended) log("Никого нет рядом или нужна лестница.", 'log-info');
+                else log("Никого в радиусе действия.", 'log-info');
             }
         }
 
         function refillWater() {
-            if (!gameState.isPlaying) return;
-            
-            // Проверка позиции (должен быть у края карты)
-            if (gameState.truckPosition < 50) {
-                gameState.water = 100;
-                addLog('💧 Бак заполнен!', 'water');
+            if(!state.isPlaying) return;
+            // Проверка позиции (гидрант слева, x < 80)
+            if(state.truckX < 80) {
+                state.water = Math.min(100, state.water + 1); // Быстрое наполнение
+                if(state.water < 100) {
+                    setTimeout(refillWater, 20);
+                } else {
+                    log("Бак заправлен полностью.", 'log-good');
+                }
+                updateUI();
             } else {
-                addLog('⚠️ Подъедьте к гидранту (левый край)', 'warning');
+                log("Подъедьте к гидранту (красный столб слева)!", 'log-crit');
             }
         }
 
-        function updateHoseAngle() {
-            const hose = document.getElementById('hose');
-            hose.style.transform = `rotate(-${gameState.waterAngle}deg)`;
+        // --- UI и Утилиты ---
+
+        function updateUI() {
+            ELEMENTS.waterVal.innerText = Math.floor(state.water) + '%';
+            ELEMENTS.waterBar.style.width = state.water + '%';
+            if(state.water < 20) ELEMENTS.waterBox.classList.add('alert');
+            else ELEMENTS.waterBox.classList.remove('alert');
+
+            ELEMENTS.fireVal.innerText = state.firePercentage + '%';
+            ELEMENTS.fireBar.style.width = state.firePercentage + '%';
+
+            const mins = Math.floor(state.time / 60);
+            const secs = Math.floor(state.time % 60);
+            ELEMENTS.timeVal.innerText = `${mins}:${secs < 10 ? '0'+secs : secs}`;
+            if(state.time < 30) ELEMENTS.timeVal.style.color = '#ff4444';
+            else ELEMENTS.timeVal.style.color = 'white';
+
+            ELEMENTS.rescuedVal.innerText = `${state.rescued}/${state.peopleTotal + state.rescued}`;
+            ELEMENTS.scoreVal.innerText = state.score;
+            ELEMENTS.levelDisplay.innerText = state.level;
         }
 
-        function checkWinCondition() {
-            const allFireOut = gameState.windows.every(w => parseFloat(w.dataset.fire) === 0);
-            const allRescued = gameState.people.every(p => 
-                p.element.dataset.rescued === 'true' || p.element.dataset.rescued === 'dead'
-            );
+        function updatePeopleCount() {
+            const current = state.windows.filter(w => w.hasPerson).length;
+            ELEMENTS.peopleCount.innerText = current;
+        }
+
+        function log(msg, type) {
+            const div = document.createElement('div');
+            div.className = `log-entry ${type || ''}`;
+            div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            ELEMENTS.log.prepend(div);
+            if(ELEMENTS.log.children.length > 20) ELEMENTS.log.lastChild.remove();
+        }
+
+        function endGame(win, msg) {
+            state.isPlaying = false;
+            clearInterval(state.gameLoopInterval);
+            clearInterval(state.moveInterval);
+            clearInterval(state.waterInterval);
+            toggleWater(false);
+
+            const modal = document.getElementById('endModal');
+            const title = document.getElementById('endTitle');
+            const message = document.getElementById('endMessage');
+            const stats = document.getElementById('endStats');
+
+            modal.classList.remove('hidden');
+            title.innerText = win ? "УРОВЕНЬ ПРОЙДЕН!" : "ПРОВАЛ";
+            title.style.color = win ? "#00ff88" : "#ff4444";
+            message.innerText = msg;
             
-            if (allFireOut && allRescued) {
-                gameWin();
+            stats.innerHTML = `Очки: ${state.score}<br>Спасено: ${state.rescued}`;
+
+            if(win) {
+                state.level++;
+                state.score += 500; // Бонус за уровень
+            } else {
+                // Рестарт того же уровня или сброс на 1
+                // Для простоты оставляем уровень
+                state.score = Math.max(0, state.score - 200);
             }
         }
 
-        function gameWin() {
-            gameState.isPlaying = false;
-            clearInterval(gameLoop);
-            clearInterval(waterInterval);
-            
-            // Бонус за оставшееся время и воду
-            const timeBonus = Math.floor(gameState.time * 2);
-            const waterBonus = Math.floor(gameState.water);
-            gameState.score += timeBonus + waterBonus;
-            
-            document.getElementById('final-score').textContent = gameState.score;
-            document.getElementById('final-rescued').textContent = gameState.rescued + '/' + gameState.totalPeople;
-            document.getElementById('final-time').textContent = 
-                `${Math.floor(gameState.time / 60)}:${Math.floor(gameState.time % 60).toString().padStart(2, '0')}`;
-            document.getElementById('final-water').textContent = Math.round(gameState.water) + '%';
-            
-            document.getElementById('win-text').textContent = 
-                `Вы спасли ${gameState.rescued} человек и потушили пожар! Бонус за время: +${timeBonus}`;
-            
-            showModal('modal-win');
+        function renderLoop() {
+            if(state.isPlaying) requestAnimationFrame(renderLoop);
         }
 
-        function gameOver(reason) {
-            gameState.isPlaying = false;
-            clearInterval(gameLoop);
-            clearInterval(waterInterval);
+        // --- Обработчики событий ---
+
+        window.addEventListener('keydown', (e) => {
+            if(!state.isPlaying) return;
             
-            let message = '';
-            switch(reason) {
-                case 'time':
-                    message = 'Время вышло! Пожар вышел из-под контроля.';
-                    break;
-                case 'fire':
-                    message = 'Пожар распространился на все здание!';
-                    break;
-                default:
-                    message = 'Миссия провалена.';
-            }
-            
-            document.getElementById('lose-text').textContent = message;
-            showModal('modal-lose');
-        }
+            if(e.code === 'KeyA' || e.key === 'ArrowLeft') startMove(-1);
+            if(e.code === 'KeyD' || e.key === 'ArrowRight') startMove(1);
+            if(e.code === 'Space') toggleWater(true);
+            if(e.code === 'KeyW' || e.key === 'ArrowUp') adjustAngle(5);
+            if(e.code === 'KeyS' || e.key === 'ArrowDown') adjustAngle(-5);
+            if(e.code === 'KeyE') attemptRescue();
+            if(e.code === 'KeyR') refillWater();
+            if(e.code === 'KeyL') toggleLadder();
+        });
 
-        function nextLevel() {
-            gameState.level++;
-            hideModal('modal-win');
-            startMission();
-        }
+        window.addEventListener('keyup', (e) => {
+            if(e.code === 'KeyA' || e.key === 'ArrowLeft' || e.code === 'KeyD' || e.key === 'ArrowRight') stopMove();
+            if(e.code === 'Space') toggleWater(false);
+        });
 
-        function restartMission() {
-            hideModal('modal-lose');
-            hideModal('modal-win');
-            clearInterval(gameLoop);
-            clearInterval(waterInterval);
-            startMission();
-        }
+        // Масштабирование при изменении размера окна
+        window.addEventListener('resize', () => {
+             // Обновить координаты окон
+             if(state.windows) {
+                state.windows.forEach(w => {
+                    const rect = w.element.getBoundingClientRect();
+                    const fieldRect = ELEMENTS.field.getBoundingClientRect();
+                    w.x = rect.left - fieldRect.left + rect.width/2;
+                    w.y = rect.top - fieldRect.top + rect.height/2;
+                });
+             }
+        });
 
-        function pauseGame() {
-            if (!gameState.isPlaying) return;
-            gameState.isPaused = true;
-            showModal('modal-pause');
-        }
-
-        function resumeGame() {
-            gameState.isPaused = false;
-            hideModal('modal-pause');
-        }
-
-        function addLog(message, type = '') {
-            const container = document.getElementById('log-container');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry ' + type;
-            
-            const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            entry.textContent = `[${time}] ${message}`;
-            
-            container.insertBefore(entry, container.firstChild);
-            
-            // Ограничение логов
-            while (container.children.length > 20) {
-                container.removeChild(container.lastChild);
-            }
-        }
-
-        // Генерация дыма
-        function generateSmoke() {
-            const container = document.getElementById('smoke-container');
-            
-            setInterval(() => {
-                if (!gameState.isPlaying || gameState.firePercent === 0) return;
-                
-                const particle = document.createElement('div');
-                particle.className = 'smoke-particle';
-                particle.style.width = (20 + Math.random() * 30) + 'px';
-                particle.style.height = particle.style.width;
-                particle.style.left = (Math.random() * 100) + '%';
-                particle.style.bottom = '40%';
-                
-                container.appendChild(particle);
-                
-                setTimeout(() => particle.remove(), 3000);
-            }, 500);
-        }
-
-        generateSmoke();
     </script>
 </body>
 </html>
