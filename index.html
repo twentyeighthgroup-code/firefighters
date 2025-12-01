@@ -3,35 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>🔥 FIRE HERO: TG EDITION</title>
+    <title>🔥 INFERNO CITY: LEGENDS</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@600;700&display=swap');
 
         :root {
-            --hud-bg: rgba(10, 20, 30, 0.85);
-            --accent: #ff4d00;
-            --water: #00f0ff;
+            --bg: #050508;
+            --ui-bg: rgba(10, 15, 25, 0.85);
+            --neon-blue: #00f3ff;
+            --neon-red: #ff2a2a;
+            --neon-gold: #ffd700;
+            --glass: rgba(255, 255, 255, 0.05);
         }
 
         body {
             margin: 0;
+            background-color: var(--bg);
             overflow: hidden;
-            background: #050505;
             font-family: 'Rajdhani', sans-serif;
-            color: white;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: none; /* Блокируем зум и скролл */
+            touch-action: none;
         }
 
         canvas {
             display: block;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
+            image-rendering: optimizeSpeed; /* Для производительности */
         }
 
-        /* UI Layer */
+        /* UI OVERLAY */
         #ui-layer {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -42,750 +45,776 @@
             z-index: 10;
         }
 
-        /* HUD Top */
+        /* HUD */
         .hud-top {
             display: flex;
             justify-content: space-between;
-            padding: 10px;
-            padding-top: env(safe-area-inset-top); /* Для iPhone с челкой */
+            padding: 10px 20px;
+            padding-top: max(10px, env(safe-area-inset-top));
         }
 
-        .stat-block {
-            background: var(--hud-bg);
-            padding: 5px 10px;
-            border-radius: 8px;
+        .hud-panel {
+            background: var(--ui-bg);
             border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(4px);
+            border-radius: 12px;
+            padding: 8px 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            min-width: 80px;
+            text-align: center;
         }
 
-        .stat-value {
-            font-size: 18px;
-            font-weight: 800;
-            font-family: 'Black Ops One', cursive;
-            color: #fff;
-            text-shadow: 0 2px 0 #000;
-        }
+        .label { font-size: 10px; color: #889; text-transform: uppercase; letter-spacing: 1px; }
+        .value { font-family: 'Orbitron', sans-serif; font-size: 18px; color: #fff; text-shadow: 0 0 10px var(--neon-blue); }
+        .value.money { color: var(--neon-gold); text-shadow: 0 0 10px var(--neon-gold); }
 
-        .bar-container {
-            width: 100px;
-            height: 6px;
-            background: #222;
-            margin-top: 2px;
-            border-radius: 3px;
-            overflow: hidden;
+        /* Bar Styles */
+        .bar-wrap {
+            width: 100%; height: 4px; background: #222; margin-top: 4px; border-radius: 2px; overflow: hidden;
         }
-        .bar-fill { height: 100%; transition: width 0.2s; }
-        #water-bar { background: linear-gradient(90deg, #0055ff, var(--water)); }
-        #heat-bar { background: linear-gradient(90deg, #ffaa00, #ff0000); }
+        .bar-fill { height: 100%; width: 100%; transition: width 0.2s; }
+        #water-fill { background: var(--neon-blue); box-shadow: 0 0 8px var(--neon-blue); }
+        #heat-fill { background: var(--neon-red); box-shadow: 0 0 8px var(--neon-red); }
 
-        /* CONTROLS (Mobile) */
-        .controls-area {
+        /* CONTROLS */
+        .controls {
             pointer-events: auto;
             padding: 20px;
-            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
         }
 
-        .d-pad, .action-pad {
-            display: grid;
-            gap: 10px;
-        }
-
-        .d-pad {
-            grid-template-columns: 1fr 1fr;
-            width: 140px;
-        }
-
-        .action-pad {
-            grid-template-columns: 1fr 1fr;
-            width: 150px;
-            align-items: end;
-        }
-
-        .ctrl-btn {
-            width: 60px;
-            height: 60px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-            color: white;
-            backdrop-filter: blur(5px);
-            transition: 0.1s;
-            user-select: none;
-        }
-
-        .ctrl-btn:active, .ctrl-btn.active {
-            background: rgba(255, 77, 0, 0.5);
-            border-color: var(--accent);
-            transform: scale(0.95);
-        }
-
-        .btn-shoot {
-            width: 70px;
-            height: 70px;
-            background: rgba(0, 240, 255, 0.2);
-            border-color: var(--water);
-            grid-column: span 2;
-            justify-self: center;
-        }
-        .btn-shoot:active { background: rgba(0, 240, 255, 0.6); }
-
-        /* Modals */
-        .modal {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-            transition: opacity 0.3s;
-        }
-        .modal.hidden { opacity: 0; pointer-events: none; }
-
-        .panel {
-            text-align: center;
-            width: 90%;
-            max-width: 400px;
-            background: linear-gradient(145deg, #1a1a2e, #0d0d1a);
-            padding: 30px;
-            border-radius: 20px;
-            border: 2px solid #333;
-            box-shadow: 0 0 30px rgba(255, 77, 0, 0.2);
-        }
-
-        h1, h2 {
-            font-family: 'Black Ops One';
-            margin: 0 0 15px 0;
-            background: linear-gradient(to bottom, #fff, #aaa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .stick-area {
+            width: 140px; height: 140px;
+            position: relative;
         }
 
         .btn {
-            background: linear-gradient(45deg, #c43a00, #ff4d00);
-            border: none;
-            padding: 15px 30px;
-            font-family: 'Black Ops One';
+            background: var(--glass);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 50%;
             color: white;
-            font-size: 20px;
-            border-radius: 10px;
-            width: 100%;
-            margin-top: 15px;
-            box-shadow: 0 5px 0 #802000;
-        }
-        .btn:active { transform: translateY(5px); box-shadow: none; }
-
-        /* Shop Grid */
-        .shop-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            text-align: left;
-            margin-bottom: 10px;
-        }
-
-        .upgrade-card {
-            background: rgba(255,255,255,0.05);
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #333;
-        }
-        .upgrade-card.disabled { opacity: 0.5; }
-        .upg-name { font-size: 14px; font-weight: bold; color: var(--water); }
-        .upg-cost { float: right; color: #ffcc00; font-weight: bold; }
-
-        /* Float Text */
-        #notifications { pointer-events: none; position: absolute; width: 100%; height: 100%; }
-        .float-text {
-            position: absolute;
-            font-weight: 800;
+            display: flex; justify-content: center; align-items: center;
             font-size: 24px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            animation: floatUp 1s forwards;
-        }
-        @keyframes floatUp {
-            to { transform: translateY(-80px) scale(1.2); opacity: 0; }
+            backdrop-filter: blur(5px);
+            transition: 0.1s;
+            position: absolute;
         }
         
-        .weather-alert {
-            position: absolute;
-            top: 80px;
-            width: 100%;
-            text-align: center;
-            color: #fff;
-            font-weight: bold;
-            text-transform: uppercase;
-            text-shadow: 0 0 5px red;
-            animation: blink 1s infinite;
-        }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        .btn:active, .btn.pressed { background: rgba(0, 243, 255, 0.2); border-color: var(--neon-blue); transform: scale(0.95); }
+        
+        /* Left D-Pad */
+        .btn-left { left: 0; top: 40px; width: 60px; height: 60px; }
+        .btn-right { right: 0; top: 40px; width: 60px; height: 60px; }
+        .btn-refill { bottom: 0; left: 35px; width: 70px; height: 30px; border-radius: 15px; font-size: 12px; border-color: var(--neon-red); }
 
+        /* Right Action */
+        .btn-up { left: 40px; top: 0; width: 60px; height: 40px; border-radius: 10px; }
+        .btn-down { left: 40px; bottom: 0; width: 60px; height: 40px; border-radius: 10px; }
+        .btn-shoot { 
+            right: 0; top: 40px; width: 80px; height: 80px; 
+            background: rgba(255, 42, 42, 0.15); border-color: var(--neon-red);
+            box-shadow: 0 0 20px rgba(255, 42, 42, 0.2);
+        }
+        .btn-shoot:active { background: rgba(255, 42, 42, 0.5); }
+
+        /* MODALS */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal-card {
+            width: 85%; max-width: 400px;
+            background: linear-gradient(160deg, #121420 0%, #080a10 100%);
+            border: 1px solid #333;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .modal-card::before {
+            content: ''; position: absolute; top:0; left:0; width:100%; height:4px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-red));
+        }
+
+        h1 { font-family: 'Orbitron'; margin: 0 0 10px 0; font-size: 28px; background: linear-gradient(#fff, #aaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        h2 { font-family: 'Orbitron'; color: var(--neon-gold); margin: 0 0 20px 0; }
+        p { color: #99a; font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
+
+        .main-btn {
+            width: 100%; padding: 15px; border: none; border-radius: 8px;
+            background: linear-gradient(90deg, var(--neon-blue), #00a8ff);
+            color: #000; font-family: 'Orbitron'; font-weight: 900; font-size: 18px;
+            cursor: pointer; transition: 0.2s; margin-top: 10px;
+        }
+        .main-btn:active { transform: scale(0.98); filter: brightness(0.8); }
+
+        .upgrade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .upg-item {
+            background: rgba(255,255,255,0.03); border: 1px solid #333; padding: 12px; border-radius: 8px;
+            text-align: left; transition: 0.2s;
+        }
+        .upg-item:active { background: rgba(255,255,255,0.1); }
+        .upg-title { font-size: 12px; color: var(--neon-blue); font-weight: bold; }
+        .upg-lvl { font-size: 10px; color: #666; margin: 4px 0; }
+        .upg-cost { font-size: 14px; color: var(--neon-gold); font-family: 'Orbitron'; float: right; }
+
+        /* NOTIFICATIONS */
+        #float-layer { position: absolute; width: 100%; height: 100%; pointer-events: none; }
+        .float-txt {
+            position: absolute; font-family: 'Orbitron'; font-weight: bold; font-size: 24px;
+            text-shadow: 0 2px 0 #000; animation: floatUp 0.8s ease-out forwards;
+        }
+        @keyframes floatUp { 0%{opacity:1; transform:translateY(0) scale(0.5);} 100%{opacity:0; transform:translateY(-80px) scale(1.2);} }
+
+        /* SCANLINE EFFECT */
+        .scanlines {
+            position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px; opacity: 0.3;
+        }
     </style>
 </head>
 <body>
 
-    <canvas id="gameCanvas"></canvas>
+    <div class="scanlines"></div>
+    <canvas id="game"></canvas>
 
     <div id="ui-layer">
         <div class="hud-top">
-            <div class="stat-block">
-                <div style="font-size:10px; color:#888;">БАК</div>
-                <div class="bar-container"><div class="bar-fill" id="water-bar"></div></div>
+            <div class="hud-panel">
+                <div class="label">ДАВЛЕНИЕ</div>
+                <div class="bar-wrap"><div class="bar-fill" id="water-fill"></div></div>
             </div>
-            
-            <div class="stat-block">
-                <div class="stat-value" id="money-display">$0</div>
+            <div class="hud-panel">
+                <div class="label">СЧЕТ</div>
+                <div class="value money" id="score-val">$0</div>
             </div>
-
-            <div class="stat-block">
-                <div style="font-size:10px; color:#888;">ХАОС</div>
-                <div class="bar-container"><div class="bar-fill" id="heat-bar"></div></div>
+            <div class="hud-panel">
+                <div class="label">УГРОЗА</div>
+                <div class="bar-wrap"><div class="bar-fill" id="heat-fill"></div></div>
             </div>
         </div>
 
-        <div id="notifications"></div>
+        <div id="float-layer"></div>
 
-        <!-- Touch Controls -->
-        <div class="controls-area">
-            <div class="d-pad">
-                <div class="ctrl-btn" id="btn-left">⬅</div>
-                <div class="ctrl-btn" id="btn-right">➡</div>
-                <div class="ctrl-btn" id="btn-refill" style="grid-column: span 2; width: 100%; margin-top: 10px; border-color: #ff4444; font-size: 14px;">⚡ ЗАПРАВКА</div>
+        <div class="controls">
+            <div class="stick-area">
+                <div id="btn-l" class="btn btn-left">⬅</div>
+                <div id="btn-r" class="btn btn-right">➡</div>
+                <div id="btn-refill" class="btn btn-refill">⚡ ВОДА</div>
             </div>
-            
-            <div class="action-pad">
-                <div class="ctrl-btn" id="btn-up">⬆</div>
-                <div class="ctrl-btn" id="btn-down">⬇</div>
-                <div class="ctrl-btn btn-shoot" id="btn-shoot">🔥</div>
+            <div class="stick-area">
+                <div id="btn-u" class="btn btn-up">⬆</div>
+                <div id="btn-d" class="btn btn-down">⬇</div>
+                <div id="btn-shoot" class="btn btn-shoot">🔥</div>
             </div>
         </div>
     </div>
 
-    <!-- Start Screen -->
-    <div id="start-screen" class="modal">
-        <div class="panel">
-            <h1>FIRE HERO</h1>
-            <p style="color:#aaa; margin-bottom: 20px;">Telegram Edition</p>
-            <p>Спасай людей, следи за ветром, улучшай пушку.</p>
-            <button class="btn" onclick="game.start()">НАЧАТЬ СМЕНУ</button>
+    <!-- START MENU -->
+    <div id="modal-start" class="modal-overlay active">
+        <div class="modal-card">
+            <h1>INFERNO CITY</h1>
+            <p>Город в огне. Ты - последняя линия обороны. Туши пожары, спасай людей, зарабатывай на апгрейды.</p>
+            <div style="color: var(--neon-blue); font-size: 12px; margin-bottom: 20px;">ПРОГРЕСС СОХРАНЯЕТСЯ АВТОМАТИЧЕСКИ</div>
+            <button class="main-btn" onclick="Game.start()">ВЫЕЗД НА ВЫЗОВ</button>
         </div>
     </div>
 
-    <!-- Shop Screen -->
-    <div id="shop-screen" class="modal hidden">
-        <div class="panel">
-            <h2 style="color: #00ff88;">УРОВЕНЬ ПРОЙДЕН</h2>
-            <p id="level-info" style="color:#ccc; font-size: 14px; margin-bottom:10px;"></p>
+    <!-- SHOP MENU -->
+    <div id="modal-shop" class="modal-overlay">
+        <div class="modal-card">
+            <h2>МИССИЯ ЗАВЕРШЕНА</h2>
+            <div id="level-stats" style="margin-bottom: 15px; font-size: 12px; color: #ccc;"></div>
             
-            <div class="shop-grid">
-                <div class="upgrade-card" onclick="game.buyUpgrade('pressure')">
-                    <div class="upg-name">Давление</div>
+            <div class="upgrade-grid">
+                <div class="upg-item" onclick="Game.upgrade('pressure')">
+                    <div class="upg-title">ТУРБО НАСОС</div>
+                    <div class="upg-lvl" id="lvl-pressure">LVL 1</div>
                     <div class="upg-cost" id="cost-pressure">$100</div>
                 </div>
-                <div class="upgrade-card" onclick="game.buyUpgrade('tank')">
-                    <div class="upg-name">Бак</div>
+                <div class="upg-item" onclick="Game.upgrade('tank')">
+                    <div class="upg-title">БАК ТИТАН</div>
+                    <div class="upg-lvl" id="lvl-tank">LVL 1</div>
                     <div class="upg-cost" id="cost-tank">$150</div>
                 </div>
-                <div class="upgrade-card" onclick="game.buyUpgrade('speed')">
-                    <div class="upg-name">Мотор</div>
+                <div class="upg-item" onclick="Game.upgrade('speed')">
+                    <div class="upg-title">ДВИГАТЕЛЬ V8</div>
+                    <div class="upg-lvl" id="lvl-speed">LVL 1</div>
                     <div class="upg-cost" id="cost-speed">$200</div>
                 </div>
-                <div class="upgrade-card" onclick="game.buyUpgrade('nozzle')">
-                    <div class="upg-name">Сплиттер</div>
-                    <div class="upg-cost" id="cost-nozzle">$300</div>
+                <div class="upg-item" onclick="Game.upgrade('splitter')">
+                    <div class="upg-title">СПЛИТТЕР</div>
+                    <div class="upg-lvl" id="lvl-splitter">OFF</div>
+                    <div class="upg-cost" id="cost-splitter">$500</div>
                 </div>
             </div>
-            <button class="btn" onclick="game.nextLevel()">СЛЕДУЮЩИЙ >> </button>
-        </div>
-    </div>
-
-    <!-- Game Over -->
-    <div id="game-over-screen" class="modal hidden">
-        <div class="panel">
-            <h1 style="color: red;">ПРОВАЛ</h1>
-            <p>Город сгорел.</p>
-            <p id="final-score" style="font-size: 20px; font-weight: bold; color: #fff;"></p>
-            <button class="btn" onclick="location.reload()">ЗАНОВО</button>
+            <button class="main-btn" onclick="Game.nextLevel()">СЛЕДУЮЩИЙ РАЙОН >></button>
         </div>
     </div>
 
     <script>
-        // Telegram WebApp Initialization
-        if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.ready();
-            window.Telegram.WebApp.expand(); // Fullscreen
-        }
+        // --- SYSTEM & CONFIG ---
+        const cvs = document.getElementById('game');
+        const ctx = cvs.getContext('2d', { alpha: false, desynchronized: true });
 
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d', { alpha: false });
-
-        // Handle High DPI Screens (Retina)
-        let W, H, scale;
-        function resize() {
+        // Responsive Canvas
+        let W, H, DPR;
+        const resize = () => {
             W = window.innerWidth;
             H = window.innerHeight;
-            scale = Math.min(2, window.devicePixelRatio); // Cap scale for performance
-            
-            canvas.width = W * scale;
-            canvas.height = H * scale;
-            canvas.style.width = W + 'px';
-            canvas.style.height = H + 'px';
-            
-            ctx.scale(scale, scale);
-        }
+            DPR = Math.min(2, window.devicePixelRatio); // Optimization cap
+            cvs.width = W * DPR;
+            cvs.height = H * DPR;
+            ctx.scale(DPR, DPR);
+        };
         window.addEventListener('resize', resize);
         resize();
 
-        // --- UTILS ---
-        const rand = (min, max) => Math.random() * (max - min) + min;
-        const vibrate = (ms) => {
-            if (navigator.vibrate) navigator.vibrate(ms);
+        // Save System
+        const Save = {
+            data: {
+                money: 0,
+                level: 1,
+                upgrades: {
+                    pressure: 1,
+                    tank: 1,
+                    speed: 1,
+                    splitter: 0
+                }
+            },
+            load() {
+                const s = localStorage.getItem('inferno_save');
+                if(s) this.data = JSON.parse(s);
+            },
+            save() {
+                localStorage.setItem('inferno_save', JSON.stringify(this.data));
+            }
         };
+        Save.load();
 
-        // --- CONTROLS SYSTEM ---
-        const keys = { left: false, right: false, up: false, down: false, shoot: false, refill: false };
+        // Utils
+        const rand = (min, max) => Math.random() * (max - min) + min;
+        const vibrate = (ms) => { if(navigator.vibrate) navigator.vibrate(ms); };
         
-        // Helper to bind touch events
-        function bindTouch(id, key) {
-            const btn = document.getElementById(id);
-            const start = (e) => { e.preventDefault(); keys[key] = true; btn.classList.add('active'); };
-            const end = (e) => { e.preventDefault(); keys[key] = false; btn.classList.remove('active'); };
-            
-            btn.addEventListener('touchstart', start, {passive: false});
-            btn.addEventListener('touchend', end);
-            btn.addEventListener('mousedown', start); // Debug on PC
-            btn.addEventListener('mouseup', end);
-        }
-
-        bindTouch('btn-left', 'left');
-        bindTouch('btn-right', 'right');
-        bindTouch('btn-up', 'up');
-        bindTouch('btn-down', 'down');
-        bindTouch('btn-shoot', 'shoot');
-        bindTouch('btn-refill', 'refill');
-
-        // --- GAME ENGINE ---
+        // --- GRAPHICS ENGINE ---
+        const Camera = { x: 0, shake: 0 };
+        
         class Particle {
-            constructor(x, y, type) {
-                this.x = x;
-                this.y = y;
-                this.type = type;
-                this.life = 1.0;
+            constructor() { this.active = false; }
+            spawn(x, y, type, vx, vy) {
+                this.x = x; this.y = y; this.type = type;
+                this.vx = vx; this.vy = vy;
+                this.life = 1.0; this.active = true;
                 
-                if (type === 'water') {
-                    // Physics affected by wind
-                    let angle = game.truck.angle;
-                    let force = game.upgrades.pressure.val;
-                    this.vx = Math.cos(angle) * force + rand(-0.5, 0.5);
-                    this.vy = Math.sin(angle) * force + rand(-0.5, 0.5);
-                    this.size = rand(3, 5);
-                    this.color = `hsl(${rand(180, 220)}, 100%, 60%)`;
-                    this.gravity = 0.25;
-                } else if (type === 'fire') {
-                    this.vx = rand(-0.5, 0.5);
-                    this.vy = rand(-2, -0.5);
-                    this.size = rand(8, 20);
-                    this.decay = rand(0.02, 0.04);
-                    this.gravity = -0.05;
-                } else if (type === 'smoke') {
-                    this.vx = game.wind * 0.5 + rand(-0.5, 0.5);
-                    this.vy = rand(-1.5, -0.5);
+                if(type === 'fire') {
                     this.size = rand(10, 25);
-                    this.decay = 0.015;
-                    this.gravity = 0;
-                } else if (type === 'spark') {
-                    this.vx = rand(-3, 3);
-                    this.vy = rand(-3, 3);
-                    this.size = rand(1, 2);
+                    this.decay = rand(0.02, 0.04);
+                    this.color = `hsla(${rand(0, 40)}, 100%, 50%,`; 
+                } else if(type === 'water') {
+                    this.size = rand(3, 6);
+                    this.decay = 0;
+                    this.color = '#00f3ff';
+                } else if(type === 'smoke') {
+                    this.size = rand(10, 30);
+                    this.decay = 0.01;
+                    this.color = '#333';
+                } else if(type === 'spark') {
+                    this.size = rand(1, 3);
                     this.decay = 0.05;
-                    this.gravity = 0.2;
+                    this.color = '#fff';
+                } else if(type === 'steam') {
+                    this.size = rand(5, 15);
+                    this.decay = 0.03;
+                    this.color = '#fff';
                 }
             }
-
             update() {
-                // Wind effect
-                if (this.type === 'water' || this.type === 'smoke') {
-                    this.vx += game.wind * 0.05;
+                if(!this.active) return;
+                this.life -= this.decay;
+                
+                // Physics
+                if(this.type === 'water') {
+                    this.vx += Game.wind * 0.01;
+                    this.vy += 0.2; // Gravity
+                    if(this.y > H - 50) this.life = 0; // Ground hit
+                } else if(this.type === 'fire') {
+                    this.vy += -0.05; // Rise
+                    this.size *= 0.95;
+                } else if(this.type === 'smoke') {
+                    this.vx += Game.wind * 0.02;
+                    this.vy -= 0.02;
+                    this.size *= 1.01;
                 }
 
                 this.x += this.vx;
                 this.y += this.vy;
-                
-                if (this.type === 'water' || this.type === 'spark') {
-                    this.vy += this.gravity;
-                }
-                
-                if (this.type === 'fire' || this.type === 'smoke' || this.type === 'spark') {
-                    this.life -= this.decay;
-                } else {
-                    // Water collision with ground
-                    if (this.y > H - 40) this.life = 0;
-                    if (this.x > W + 100 || this.x < -100) this.life = 0;
-                }
-            }
 
-            draw(ctx) {
-                if (this.life <= 0) return;
-                ctx.globalAlpha = this.life;
+                if(this.life <= 0) this.active = false;
+            }
+            draw() {
+                if(!this.active) return;
                 
-                if (this.type === 'water') {
+                if(this.type === 'fire') {
+                    ctx.globalCompositeOperation = 'lighter'; // Additive blending for GLOW
+                    ctx.fillStyle = this.color + this.life + ')';
+                } else if(this.type === 'water') {
+                    ctx.globalCompositeOperation = 'source-over';
                     ctx.fillStyle = this.color;
-                    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
-                } else if (this.type === 'fire') {
-                    let hue = 60 - (1 - this.life) * 50; 
-                    ctx.fillStyle = `hsla(${hue}, 100%, 50%, ${this.life})`;
-                    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
-                } else if (this.type === 'smoke') {
-                    ctx.fillStyle = '#333';
-                    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
-                } else if (this.type === 'spark') {
-                    ctx.fillStyle = '#fff';
-                    ctx.fillRect(this.x, this.y, this.size, this.size);
+                } else if(this.type === 'smoke') {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.fillStyle = `rgba(50,50,50,${this.life * 0.5})`;
+                } else {
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.fillStyle = `rgba(255,255,255,${this.life})`;
                 }
-                ctx.globalAlpha = 1.0;
+
+                ctx.beginPath();
+                ctx.arc(this.x - Camera.x, this.y, this.size, 0, Math.PI*2);
+                ctx.fill();
+                ctx.globalCompositeOperation = 'source-over';
             }
         }
 
+        const Particles = {
+            pool: new Array(800).fill().map(() => new Particle()),
+            spawn(x, y, type, vx = 0, vy = 0) {
+                const p = this.pool.find(p => !p.active);
+                if(p) p.spawn(x, y, type, vx, vy);
+            },
+            updateAndDraw() {
+                this.pool.forEach(p => { p.update(); p.draw(); });
+            }
+        };
+
+        // --- GAME OBJECTS ---
         class Building {
-            constructor(x, w, floors) {
-                this.x = x;
-                this.w = w;
-                this.h = floors * 60;
+            constructor(x, w, h) {
+                this.x = x; this.w = w; this.h = h;
                 this.windows = [];
+                let floors = Math.floor(h / 60);
+                let cols = Math.floor(w / 40);
                 
                 for(let f=0; f<floors; f++) {
-                    let winCount = Math.floor(w / 45);
-                    for(let i=0; i<winCount; i++) {
+                    for(let c=0; c<cols; c++) {
                         this.windows.push({
-                            x: x + 10 + i * 45,
-                            y: (H - 40) - (f * 60) - 50,
-                            w: 25, h: 35,
-                            hp: 0, maxHp: 100,
-                            person: Math.random() < 0.35,
+                            x: x + 5 + c * 40,
+                            y: (H - 50) - (f * 60) - 50,
+                            w: 30, h: 40,
+                            hp: 0, max: 100,
+                            hasPerson: Math.random() < 0.2,
                             saved: false, dead: false
                         });
                     }
                 }
             }
-
-            draw(ctx) {
-                ctx.fillStyle = '#111';
-                ctx.fillRect(this.x, H - 40 - this.h, this.w, this.h);
-                
-                // Lights overlay
-                ctx.fillStyle = 'rgba(255,255,255,0.05)';
-                ctx.fillRect(this.x + 5, H - 40 - this.h, 5, this.h);
+            draw() {
+                // Building Silhouette
+                ctx.fillStyle = '#0a0a12';
+                ctx.fillRect(this.x - Camera.x, H - 50 - this.h, this.w, this.h);
+                // Neon Edge
+                ctx.strokeStyle = '#1a1a2e';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x - Camera.x, H - 50 - this.h, this.w, this.h);
 
                 this.windows.forEach(win => {
-                    if (win.hp >= 100) ctx.fillStyle = '#000'; // Burnt
-                    else if (win.hp > 0) ctx.fillStyle = `rgba(255, ${100-win.hp}, 0, ${0.6})`; // Fire
-                    else ctx.fillStyle = '#223'; // Normal
-
-                    ctx.fillRect(win.x, win.y, win.w, win.h);
-
-                    if (win.person && !win.saved && !win.dead) {
-                        ctx.font = '16px Arial';
-                        ctx.fillStyle = '#fff';
-                        ctx.fillText('🙋', win.x + 4, win.y + 25);
-                        if (win.hp > 0) {
-                            ctx.font = '10px Arial';
-                            ctx.fillStyle = 'red';
-                            ctx.fillText('SOS', win.x+2, win.y - 5);
+                    let rx = win.x - Camera.x;
+                    
+                    // Window Base
+                    if(win.hp >= 100) ctx.fillStyle = '#000'; // Burnt
+                    else if(win.hp > 0) {
+                        // Dynamic Fire Light
+                        let flicker = Math.random() * 0.5 + 0.5;
+                        ctx.fillStyle = `rgba(255, ${100 - win.hp}, 0, ${flicker})`;
+                        
+                        // Spawn Fire Particles
+                        if(Math.random() < win.hp / 200) {
+                            Particles.spawn(win.x + rand(0, win.w), win.y + win.h, 'fire', rand(-1,1), rand(-2,-4));
+                            if(Math.random()<0.2) Particles.spawn(win.x + win.w/2, win.y, 'smoke', rand(-0.5,0.5), -2);
                         }
+                    } else {
+                        ctx.fillStyle = '#112'; // Dark window
+                        if(Math.random() < 0.001) ctx.fillStyle = '#224'; // Random room light
                     }
+                    
+                    ctx.fillRect(rx, win.y, win.w, win.h);
 
-                    // Generate particles for fire
-                    if (win.hp > 0 && win.hp < 100 && Math.random() < 0.1) {
-                        game.particles.push(new Particle(win.x + rand(0, win.w), win.y + win.h, 'fire'));
-                        if (Math.random() < 0.5) game.particles.push(new Particle(win.x + rand(0, win.w), win.y, 'smoke'));
+                    // Person
+                    if(win.hasPerson && !win.saved && !win.dead) {
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '20px Arial';
+                        ctx.fillText('🙋', rx + 5, win.y + 30);
+                        if(win.hp > 0) {
+                            ctx.fillStyle = '#f00';
+                            ctx.font = 'bold 12px Arial';
+                            ctx.fillText('SOS', rx + 2, win.y - 5);
+                        }
                     }
                 });
             }
         }
 
-        class Truck {
-            constructor() {
-                this.x = 50;
-                this.y = H - 65;
-                this.w = 100;
-                this.h = 40;
-                this.angle = -Math.PI / 4;
-                this.water = 100;
-                this.maxWater = 100;
-                this.money = 0;
-            }
-
+        const Truck = {
+            x: 50, y: 0, w: 120, h: 50,
+            angle: -0.7, water: 100, maxWater: 100,
             update() {
-                if (keys.left && this.x > 0) this.x -= game.upgrades.speed.val;
-                if (keys.right && this.x < W - this.w) this.x += game.upgrades.speed.val;
-                if (keys.up && this.angle > -Math.PI + 0.2) this.angle -= 0.04;
-                if (keys.down && this.angle < 0) this.angle += 0.04;
-
-                if (keys.refill) {
-                    if (this.x < 100) {
-                        if (this.water < this.maxWater) {
-                            this.water += 2;
-                            if(this.water % 10 === 0) vibrate(5);
-                        }
-                    } else {
-                        game.showFloat("ГИДРАНТ СЛЕВА!", this.x, this.y - 50, "red");
-                    }
-                }
-
-                if (keys.shoot && this.water > 0) {
-                    this.water -= 0.4;
-                    vibrate(10); // Tactile feedback
-                    
-                    let count = game.upgrades.nozzle.active ? 4 : 1;
-                    for(let i=0; i<count; i++) {
-                        game.particles.push(new Particle(this.x + 60, this.y - 5, 'water'));
-                    }
-                }
-            }
-
-            draw(ctx) {
-                // Body
-                ctx.fillStyle = '#d00';
-                ctx.fillRect(this.x, this.y, this.w, this.h);
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(this.x + 70, this.y + 5, 25, 15); // Window
+                this.y = H - 70;
+                // Movement
+                if(Input.l && this.x > 0) this.x -= (2 + Save.data.upgrades.speed);
+                if(Input.r && this.x < Game.worldWidth - this.w) this.x += (2 + Save.data.upgrades.speed);
                 
                 // Cannon
+                if(Input.u && this.angle > -2.5) this.angle -= 0.05;
+                if(Input.d && this.angle < -0.1) this.angle += 0.05;
+
+                // Camera follow
+                Camera.x = this.x - W/2 + this.w/2;
+                if(Camera.x < 0) Camera.x = 0;
+                if(Camera.x > Game.worldWidth - W) Camera.x = Game.worldWidth - W;
+
+                // Refill
+                if(Input.refill) {
+                    if(this.x < 150) { // Hydrant Zone
+                        if(this.water < this.maxWater) {
+                            this.water += 2;
+                            if(this.water > this.maxWater) this.water = this.maxWater;
+                        }
+                    } else {
+                        UI.float("ГИДРАНТ СЛЕВА!", W/2, H/2, 'red');
+                    }
+                }
+
+                // Shoot
+                if(Input.shoot && this.water > 0) {
+                    this.water -= 0.5;
+                    if(Math.floor(this.water) % 5 === 0) vibrate(10);
+                    
+                    let power = 10 + Save.data.upgrades.pressure * 2;
+                    let nozzleX = this.x + 80;
+                    let nozzleY = this.y;
+                    
+                    // Main stream
+                    Particles.spawn(nozzleX, nozzleY, 'water', Math.cos(this.angle)*power, Math.sin(this.angle)*power);
+                    
+                    // Splitter Upgrade
+                    if(Save.data.upgrades.splitter) {
+                        Particles.spawn(nozzleX, nozzleY, 'water', Math.cos(this.angle-0.1)*power, Math.sin(this.angle-0.1)*power);
+                        Particles.spawn(nozzleX, nozzleY, 'water', Math.cos(this.angle+0.1)*power, Math.sin(this.angle+0.1)*power);
+                    }
+                }
+            },
+            draw() {
+                let rx = this.x - Camera.x;
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(rx + 10, this.y + 45, this.w - 20, 10);
+
+                // Body
+                ctx.fillStyle = '#e00';
+                ctx.fillRect(rx, this.y, this.w, this.h);
+                // Stripe
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(rx - 5, this.y + 20, this.w + 10, 10);
+                
+                // Wheels
+                ctx.fillStyle = '#111';
+                ctx.beginPath(); ctx.arc(rx + 30, this.y + 50, 15, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(rx + 90, this.y + 50, 15, 0, Math.PI*2); ctx.fill();
+                // Rims
+                ctx.strokeStyle = '#888'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(rx + 30, this.y + 50, 8, 0, Math.PI*2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(rx + 90, this.y + 50, 8, 0, Math.PI*2); ctx.stroke();
+
+                // Cannon
                 ctx.save();
-                ctx.translate(this.x + 60, this.y);
+                ctx.translate(rx + 80, this.y);
                 ctx.rotate(this.angle);
-                ctx.fillStyle = '#888';
-                ctx.fillRect(0, -6, 35, 12);
+                ctx.fillStyle = '#aaa';
+                ctx.fillRect(0, -5, 40, 10);
+                ctx.fillStyle = '#444'; // Base
+                ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
                 ctx.restore();
 
-                // Wheels
-                ctx.fillStyle = '#222';
-                ctx.beginPath(); ctx.arc(this.x + 25, this.y + 40, 12, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(this.x + 80, this.y + 40, 12, 0, Math.PI*2); ctx.fill();
+                // Lights
+                let blink = Math.sin(Date.now()/100) > 0;
+                ctx.fillStyle = blink ? '#f00' : '#500';
+                ctx.shadowBlur = blink ? 20 : 0; ctx.shadowColor = '#f00';
+                ctx.fillRect(rx + 10, this.y - 10, 15, 10);
+                ctx.shadowBlur = 0;
             }
-        }
+        };
 
-        const game = {
-            state: 'menu',
-            level: 1,
-            wind: 0,
-            particles: [],
+        // --- GAME LOGIC ---
+        const Game = {
+            active: false,
             buildings: [],
-            truck: null,
-            heat: 0, maxHeat: 1000,
-            
-            upgrades: {
-                pressure: { val: 10, cost: 100, level: 1 },
-                tank: { val: 100, cost: 150, level: 1 },
-                speed: { val: 2, cost: 200, level: 1 },
-                nozzle: { active: false, cost: 300, level: 1 }
-            },
-
-            showFloat(text, x, y, color) {
-                const el = document.createElement('div');
-                el.className = 'float-text';
-                el.innerText = text;
-                el.style.left = x + 'px';
-                el.style.top = y + 'px';
-                el.style.color = color;
-                document.getElementById('notifications').appendChild(el);
-                setTimeout(() => el.remove(), 1000);
-            },
-
-            init() {
-                this.truck = new Truck();
-                this.loop();
-            },
+            wind: 0,
+            heat: 0,
+            maxHeat: 1000,
+            worldWidth: 2000,
 
             start() {
-                document.getElementById('start-screen').classList.add('hidden');
-                this.state = 'play';
-                this.level = 1;
-                this.truck.money = 0;
+                document.getElementById('modal-start').classList.remove('active');
                 this.loadLevel();
+                this.active = true;
+                loop();
             },
 
             loadLevel() {
                 this.buildings = [];
-                this.particles = [];
                 this.heat = 0;
+                this.worldWidth = 1500 + Save.data.level * 500;
+                Truck.x = 100;
+                Truck.maxWater = 100 + Save.data.upgrades.tank * 50;
+                Truck.water = Truck.maxWater;
                 
-                // Difficulty Scaling
-                // Wind: -2 to 2. Level 3+ gets stronger wind.
-                if (this.level >= 3) {
-                    this.wind = rand(-2, 2);
-                    let wText = this.wind > 0 ? "ВЕТЕР: ВПРАВО >>" : "ВЕТЕР: << ВЛЕВО";
-                    this.showFloat(wText, W/2 - 50, H/2, "#0ff");
-                } else {
-                    this.wind = 0;
+                // Wind System
+                this.wind = (Math.random() - 0.5) * (Save.data.level * 2);
+                if(Math.abs(this.wind) > 1) UI.float(this.wind > 0 ? "ВЕТЕР >>" : "<< ВЕТЕР", W/2, H/3, "#0ff");
+
+                // Generate City
+                let cx = 250;
+                let bCount = 3 + Math.floor(Save.data.level / 2);
+                for(let i=0; i<bCount; i++) {
+                    let w = rand(120, 200);
+                    let h = rand(150, 250 + Save.data.level * 30);
+                    this.buildings.push(new Building(cx, w, h));
+                    cx += w + rand(50, 100);
                 }
 
-                let x = 150;
-                const count = 2 + Math.min(Math.floor(this.level / 2), 3);
-                
-                for(let i=0; i<count; i++) {
-                    let w = rand(80, 150);
-                    // Height increases with level
-                    let floors = rand(2, 3 + Math.floor(this.level/3));
-                    this.buildings.push(new Building(x, w, floors));
-                    x += w + rand(20, 60);
-                }
-
-                // Start fires
-                let fireCount = 2 + this.level;
-                let allWindows = this.buildings.flatMap(b => b.windows);
-                for(let i=0; i<fireCount; i++) {
-                    let win = allWindows[Math.floor(Math.random() * allWindows.length)];
-                    if(win) win.hp = 60;
+                // Ignite
+                let wins = this.buildings.flatMap(b => b.windows);
+                let fires = 3 + Save.data.level;
+                for(let i=0; i<fires; i++) {
+                    wins[Math.floor(Math.random()*wins.length)].hp = 50;
                 }
             },
 
             update() {
-                if (this.state !== 'play') return;
+                Truck.update();
+                
+                // Particles Collision
+                Particles.pool.forEach(p => {
+                    if(!p.active || p.type !== 'water') return;
+                    
+                    this.buildings.forEach(b => {
+                        // Simple bounding box check optimization
+                        if(p.x < b.x || p.x > b.x + b.w) return;
 
-                this.truck.update();
-
-                // Particles
-                for (let i = this.particles.length - 1; i >= 0; i--) {
-                    let p = this.particles[i];
-                    p.update();
-
-                    if (p.type === 'water') {
-                        this.buildings.forEach(b => {
-                            b.windows.forEach(win => {
-                                if (win.hp > 0 && win.hp < 100) {
-                                    // Simple collision
-                                    if (p.x > win.x && p.x < win.x + win.w &&
-                                        p.y > win.y && p.y < win.y + win.h) {
-                                        p.life = 0;
-                                        win.hp -= 3;
-                                        if(Math.random() < 0.3) this.particles.push(new Particle(p.x, p.y, 'smoke'));
+                        b.windows.forEach(w => {
+                            if(w.hp > 0 && w.hp < 100) {
+                                if(p.x > w.x && p.x < w.x + w.w && p.y > w.y && p.y < w.y + w.h) {
+                                    p.active = false; // Water consumed
+                                    // Steam effect
+                                    Particles.spawn(p.x, p.y, 'steam', rand(-1,1), -1);
+                                    
+                                    w.hp -= 2;
+                                    if(w.hp <= 0) {
+                                        w.hp = 0;
+                                        Save.data.money += 10;
+                                        UI.float("+$10", w.x - Camera.x, w.y, "gold");
                                         
-                                        if (win.hp <= 0) {
-                                            win.hp = 0;
-                                            this.truck.money += 15;
-                                            this.showFloat("+$15", win.x, win.y, "yellow");
-                                            
-                                            if (win.person && !win.dead) {
-                                                win.saved = true;
-                                                this.truck.money += 60;
-                                                this.showFloat("СПАСЕН! +$60", win.x, win.y-20, "#0f0");
-                                                vibrate(50);
-                                            }
+                                        if(w.hasPerson && !w.dead) {
+                                            w.saved = true;
+                                            Save.data.money += 100;
+                                            UI.float("СПАСЕН! +$100", w.x - Camera.x, w.y - 30, "#0f0");
+                                            vibrate(100);
+                                            // Sparkle
+                                            for(let k=0; k<10; k++) Particles.spawn(w.x, w.y, 'spark', rand(-5,5), rand(-5,5));
                                         }
                                     }
                                 }
-                            });
+                            }
                         });
-                    }
-                    if (p.life <= 0) this.particles.splice(i, 1);
-                }
+                    });
+                });
 
-                // Game Logic
+                // Fire Logic
                 let burning = 0;
-                let totalFire = 0;
-
                 this.buildings.forEach(b => {
-                    b.windows.forEach(win => {
-                        if (win.hp > 0 && win.hp < 100) {
+                    b.windows.forEach(w => {
+                        if(w.hp > 0 && w.hp < 100) {
                             burning++;
-                            win.hp += 0.08 + (this.level * 0.01);
-                            totalFire += win.hp;
-                            
-                            if (win.hp >= 100) {
-                                if (win.person && !win.saved) {
-                                    win.dead = true;
-                                    this.heat += 300;
+                            w.hp += 0.05 + (Save.data.level * 0.01);
+                            if(w.hp >= 100) {
+                                w.hp = 100; // Burnt
+                                if(w.hasPerson && !w.saved && !w.dead) {
+                                    w.dead = true;
+                                    this.heat += 200; // Penalty
+                                    UI.float("ПОТЕРЯ!", w.x - Camera.x, w.y, "red");
                                     vibrate(200);
-                                    this.showFloat("💀", win.x, win.y, "red");
                                 }
                             }
                         }
                     });
                 });
 
-                this.heat += burning * 0.2;
-                if (this.heat >= this.maxHeat) this.gameOver();
+                this.heat += burning * 0.1;
+                if(this.heat >= this.maxHeat) {
+                    // Fail logic could go here (reset level)
+                    this.heat = this.maxHeat;
+                }
 
-                if (burning === 0 && totalFire === 0 && this.particles.filter(p=>p.type==='water').length === 0) {
-                    setTimeout(() => this.levelComplete(), 500);
+                // Check Win
+                if(burning === 0 && Particles.pool.filter(p => p.active && p.type==='water').length === 0) {
+                     // Add small delay
+                     if(!this.winTimer) this.winTimer = setTimeout(() => this.levelComplete(), 1000);
+                } else {
+                    this.winTimer = null;
                 }
             },
 
             draw() {
-                ctx.fillStyle = '#050505';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
+                // Sky
+                let grad = ctx.createLinearGradient(0, 0, 0, H);
+                grad.addColorStop(0, '#020205');
+                grad.addColorStop(1, '#1a1a2e');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, W, H);
+
+                // Parallax Stars/City
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                for(let i=0; i<50; i++) {
+                    let sx = (i * 100 - Camera.x * 0.2) % W;
+                    if(sx < 0) sx += W;
+                    ctx.fillRect(sx, rand(0, H/2), 2, 2);
+                }
+
                 // Ground
-                ctx.fillStyle = '#151515';
-                ctx.fillRect(0, H - 40, W, 40);
-                // Hydrant
-                ctx.fillStyle = '#f00';
-                ctx.fillRect(60, H - 55, 15, 15);
+                ctx.fillStyle = '#08080c';
+                ctx.fillRect(0, H - 50, W, 50);
+                ctx.fillStyle = '#111';
+                ctx.fillRect(0, H - 50, W, 4); // Curb
 
-                this.buildings.forEach(b => b.draw(ctx));
-                this.truck.draw(ctx);
-                this.particles.forEach(p => p.draw(ctx));
+                // Hydrant (Static)
+                let hyX = 100 - Camera.x;
+                if(hyX > -50 && hyX < W + 50) {
+                    ctx.fillStyle = '#f33';
+                    ctx.fillRect(hyX, H - 70, 20, 20);
+                }
 
-                // UI Updates
-                document.getElementById('water-bar').style.width = (this.truck.water) + '%';
-                document.getElementById('heat-bar').style.width = (this.heat / this.maxHeat * 100) + '%';
-                document.getElementById('money-display').innerText = '$' + Math.floor(this.truck.money);
+                // Game Objects
+                this.buildings.forEach(b => b.draw());
+                Truck.draw();
+                Particles.updateAndDraw();
+
+                // UI Sync
+                document.getElementById('score-val').innerText = '$' + Save.data.money;
+                document.getElementById('water-fill').style.width = (Truck.water / Truck.maxWater * 100) + '%';
+                document.getElementById('heat-fill').style.width = (this.heat / this.maxHeat * 100) + '%';
             },
-
-            loop() {
-                requestAnimationFrame(() => this.loop());
-                this.update();
-                this.draw();
-            },
-
+            
             levelComplete() {
-                if (this.state !== 'play') return;
-                this.state = 'shop';
-                document.getElementById('shop-screen').classList.remove('hidden');
-                document.getElementById('level-info').innerText = `Уровень ${this.level} завершен. Ветер: ${this.wind.toFixed(1)}`;
+                this.active = false;
+                Save.save();
+                document.getElementById('modal-shop').classList.add('active');
+                document.getElementById('level-stats').innerText = `РАЙОН ${Save.data.level} ЗАЧИЩЕН. БАЛАНС: $${Save.data.money}`;
+                this.updateShopUI();
             },
-
+            
             nextLevel() {
-                this.level++;
-                this.state = 'play';
-                document.getElementById('shop-screen').classList.add('hidden');
+                Save.data.level++;
+                Save.save();
+                document.getElementById('modal-shop').classList.remove('active');
                 this.loadLevel();
+                this.active = true;
+                loop();
             },
-
-            buyUpgrade(type) {
-                let u = this.upgrades[type];
-                if (this.truck.money >= u.cost) {
-                    if (type === 'nozzle' && u.active) return;
-                    this.truck.money -= u.cost;
-                    u.cost = Math.floor(u.cost * 1.5);
-                    if (type === 'pressure') u.val += 2;
-                    if (type === 'tank') { u.val += 50; this.truck.maxWater = u.val; this.truck.water = u.val; }
-                    if (type === 'speed') u.val += 1;
-                    if (type === 'nozzle') u.active = true;
+            
+            upgrade(type) {
+                let costs = {
+                    pressure: 100 * Save.data.upgrades.pressure,
+                    tank: 150 * Save.data.upgrades.tank,
+                    speed: 200 * Save.data.upgrades.speed,
+                    splitter: 500
+                };
+                
+                let cost = costs[type];
+                
+                if(Save.data.money >= cost) {
+                    if(type === 'splitter' && Save.data.upgrades.splitter) return;
                     
-                    document.getElementById(`cost-${type}`).innerText = '$' + u.cost;
-                    this.showFloat("OK!", W/2, H/2, "#0f0");
+                    Save.data.money -= cost;
+                    Save.data.upgrades[type]++;
+                    Save.save();
+                    this.updateShopUI();
+                    UI.float("КУПЛЕНО!", W/2, H/2, "#0f0");
                 }
             },
-
-            gameOver() {
-                this.state = 'over';
-                document.getElementById('game-over-screen').classList.remove('hidden');
-                document.getElementById('final-score').innerText = `$${Math.floor(this.truck.money)}`;
-                vibrate(500);
+            
+            updateShopUI() {
+                const up = Save.data.upgrades;
+                document.getElementById('lvl-pressure').innerText = 'LVL ' + up.pressure;
+                document.getElementById('cost-pressure').innerText = '$' + (100 * up.pressure);
+                
+                document.getElementById('lvl-tank').innerText = 'LVL ' + up.tank;
+                document.getElementById('cost-tank').innerText = '$' + (150 * up.tank);
+                
+                document.getElementById('lvl-speed').innerText = 'LVL ' + up.speed;
+                document.getElementById('cost-speed').innerText = '$' + (200 * up.speed);
+                
+                document.getElementById('lvl-splitter').innerText = up.splitter ? "АКТИВЕН" : "OFF";
+                document.getElementById('cost-splitter').innerText = up.splitter ? "---" : "$500";
+                
+                // Update money header in shop
+                document.getElementById('level-stats').innerText = `БАЛАНС: $${Save.data.money}`;
             }
         };
 
-        game.init();
+        // --- INPUT HANDLER ---
+        const Input = { l:0, r:0, u:0, d:0, shoot:0, refill:0 };
+        const bindBtn = (id, key) => {
+            const el = document.getElementById(id);
+            const on = (e) => { e.preventDefault(); Input[key] = 1; el.classList.add('pressed'); };
+            const off = (e) => { e.preventDefault(); Input[key] = 0; el.classList.remove('pressed'); };
+            el.addEventListener('touchstart', on, {passive:false});
+            el.addEventListener('touchend', off);
+            el.addEventListener('mousedown', on);
+            el.addEventListener('mouseup', off);
+        };
+        bindBtn('btn-l', 'l'); bindBtn('btn-r', 'r');
+        bindBtn('btn-u', 'u'); bindBtn('btn-d', 'd');
+        bindBtn('btn-shoot', 'shoot'); bindBtn('btn-refill', 'refill');
+
+        // UI Helper
+        const UI = {
+            float(text, x, y, col) {
+                let el = document.createElement('div');
+                el.className = 'float-txt';
+                el.innerText = text;
+                el.style.left = x + 'px';
+                el.style.top = y + 'px';
+                el.style.color = col;
+                document.getElementById('float-layer').appendChild(el);
+                setTimeout(() => el.remove(), 800);
+            }
+        };
+
+        // --- MAIN LOOP ---
+        function loop() {
+            if(!Game.active) return;
+            requestAnimationFrame(loop);
+            Game.update();
+            Game.draw();
+        }
+
+        // Init Telegram
+        if(window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+        }
+
     </script>
 </body>
 </html>
