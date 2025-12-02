@@ -3,39 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>🔥 INFERNO CITY: LEGENDS</title>
+    <title>INFERNO: RED SKY</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&display=swap');
 
         :root {
-            --bg: #050508;
-            --ui-bg: rgba(10, 15, 25, 0.85);
-            --neon-blue: #00f3ff;
-            --neon-red: #ff2a2a;
-            --neon-gold: #ffd700;
-            --glass: rgba(255, 255, 255, 0.05);
+            --glass: rgba(15, 20, 30, 0.6);
+            --border: rgba(255, 255, 255, 0.15);
+            --accent: #ff3b3b;
+            --neon-blue: #00f7ff;
         }
 
         body {
             margin: 0;
-            background-color: var(--bg);
+            background: #000;
             overflow: hidden;
-            font-family: 'Rajdhani', sans-serif;
+            font-family: 'Exo 2', sans-serif;
+            touch-action: none;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: none;
         }
 
         canvas {
             display: block;
-            width: 100vw;
-            height: 100vh;
-            image-rendering: optimizeSpeed; /* Для производительности */
+            width: 100%;
+            height: 100%;
         }
 
-        /* UI OVERLAY */
-        #ui-layer {
+        /* UI LAYOUT */
+        #ui {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
@@ -45,420 +42,397 @@
             z-index: 10;
         }
 
-        /* HUD */
-        .hud-top {
+        /* TOP HUD */
+        .hud {
             display: flex;
             justify-content: space-between;
-            padding: 10px 20px;
-            padding-top: max(10px, env(safe-area-inset-top));
+            padding: max(15px, env(safe-area-inset-top)) 20px 0 20px;
         }
 
-        .hud-panel {
-            background: var(--ui-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 8px 15px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            min-width: 80px;
-            text-align: center;
+        .widget {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 8px 16px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
-        .label { font-size: 10px; color: #889; text-transform: uppercase; letter-spacing: 1px; }
-        .value { font-family: 'Orbitron', sans-serif; font-size: 18px; color: #fff; text-shadow: 0 0 10px var(--neon-blue); }
-        .value.money { color: var(--neon-gold); text-shadow: 0 0 10px var(--neon-gold); }
-
-        /* Bar Styles */
-        .bar-wrap {
-            width: 100%; height: 4px; background: #222; margin-top: 4px; border-radius: 2px; overflow: hidden;
+        .widget-label {
+            font-size: 10px;
+            color: #8a9bb5;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
         }
-        .bar-fill { height: 100%; width: 100%; transition: width 0.2s; }
-        #water-fill { background: var(--neon-blue); box-shadow: 0 0 8px var(--neon-blue); }
-        #heat-fill { background: var(--neon-red); box-shadow: 0 0 8px var(--neon-red); }
 
+        .widget-val {
+            font-size: 20px;
+            color: #fff;
+            font-weight: 900;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+
+        .bar-track {
+            width: 100px;
+            height: 6px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+        .bar-fill { height: 100%; transition: width 0.1s linear; }
+        .fill-water { background: linear-gradient(90deg, #00a8ff, var(--neon-blue)); box-shadow: 0 0 10px var(--neon-blue); }
+        .fill-heat { background: linear-gradient(90deg, #ff8800, #ff0000); box-shadow: 0 0 10px #ff0000; }
+
+        /* VIGNETTE & CINEMATIC */
+        .vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.8) 150%);
+            pointer-events: none;
+            z-index: 5;
+        }
+        
         /* CONTROLS */
-        .controls {
-            pointer-events: auto;
+        .controls-layer {
             padding: 20px;
-            padding-bottom: max(20px, env(safe-area-inset-bottom));
+            padding-bottom: max(30px, env(safe-area-inset-bottom));
+            pointer-events: auto;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
         }
 
-        .stick-area {
-            width: 140px; height: 140px;
-            position: relative;
-        }
+        .btn-group { position: relative; width: 160px; height: 160px; }
 
         .btn {
-            background: var(--glass);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 50%;
-            color: white;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 24px;
-            backdrop-filter: blur(5px);
-            transition: 0.1s;
             position: absolute;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(4px);
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            color: #fff; font-size: 24px;
+            transition: transform 0.1s, background 0.1s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
+        .btn:active { transform: scale(0.9); background: rgba(255,255,255,0.15); border-color: #fff; }
         
-        .btn:active, .btn.pressed { background: rgba(0, 243, 255, 0.2); border-color: var(--neon-blue); transform: scale(0.95); }
-        
-        /* Left D-Pad */
-        .btn-left { left: 0; top: 40px; width: 60px; height: 60px; }
-        .btn-right { right: 0; top: 40px; width: 60px; height: 60px; }
-        .btn-refill { bottom: 0; left: 35px; width: 70px; height: 30px; border-radius: 15px; font-size: 12px; border-color: var(--neon-red); }
-
-        /* Right Action */
-        .btn-up { left: 40px; top: 0; width: 60px; height: 40px; border-radius: 10px; }
-        .btn-down { left: 40px; bottom: 0; width: 60px; height: 40px; border-radius: 10px; }
-        .btn-shoot { 
-            right: 0; top: 40px; width: 80px; height: 80px; 
-            background: rgba(255, 42, 42, 0.15); border-color: var(--neon-red);
-            box-shadow: 0 0 20px rgba(255, 42, 42, 0.2);
+        /* Layout D-Pad */
+        .b-left { width: 60px; height: 60px; top: 50px; left: 0; }
+        .b-right { width: 60px; height: 60px; top: 50px; right: 0; }
+        .b-refill { 
+            width: 80px; height: 40px; bottom: 0; left: 40px; 
+            border-radius: 20px; font-size: 12px; font-weight: bold;
+            border-color: var(--accent); color: var(--accent);
         }
-        .btn-shoot:active { background: rgba(255, 42, 42, 0.5); }
 
-        /* MODALS */
-        .modal-overlay {
+        /* Layout Action */
+        .b-up { width: 50px; height: 50px; top: 0; left: 55px; }
+        .b-down { width: 50px; height: 50px; bottom: 0; left: 55px; }
+        .b-shoot { 
+            width: 90px; height: 90px; top: 35px; right: 0; 
+            background: rgba(255, 59, 59, 0.15);
+            border-color: rgba(255, 59, 59, 0.5);
+            box-shadow: 0 0 25px rgba(255, 59, 59, 0.2);
+        }
+        .b-shoot:active { background: rgba(255, 59, 59, 0.4); }
+
+        /* SCREENS */
+        .modal-bg {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(8px);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(20px);
             z-index: 100;
             display: flex; justify-content: center; align-items: center;
             opacity: 0; pointer-events: none; transition: 0.3s;
         }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-bg.visible { opacity: 1; pointer-events: auto; }
 
-        .modal-card {
-            width: 85%; max-width: 400px;
-            background: linear-gradient(160deg, #121420 0%, #080a10 100%);
+        .card {
+            width: 85%; max-width: 380px;
+            background: linear-gradient(145deg, #1a1a24, #0b0b10);
             border: 1px solid #333;
-            border-radius: 20px;
-            padding: 30px;
+            border-radius: 24px;
+            padding: 32px;
             text-align: center;
-            box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
-            position: relative;
-            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transform: translateY(20px); transition: 0.3s;
         }
-        .modal-card::before {
-            content: ''; position: absolute; top:0; left:0; width:100%; height:4px;
-            background: linear-gradient(90deg, var(--neon-blue), var(--neon-red));
+        .visible .card { transform: translateY(0); }
+
+        h1 { margin: 0 0 8px 0; font-size: 32px; background: linear-gradient(to bottom, #fff, #aaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+        
+        .cta-btn {
+            width: 100%; padding: 16px; border: none; border-radius: 12px;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            color: #fff; font-weight: 800; font-size: 16px; letter-spacing: 1px;
+            cursor: pointer; box-shadow: 0 5px 20px rgba(37, 99, 235, 0.4);
         }
+        .cta-btn:active { transform: scale(0.98); }
 
-        h1 { font-family: 'Orbitron'; margin: 0 0 10px 0; font-size: 28px; background: linear-gradient(#fff, #aaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        h2 { font-family: 'Orbitron'; color: var(--neon-gold); margin: 0 0 20px 0; }
-        p { color: #99a; font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
-
-        .main-btn {
-            width: 100%; padding: 15px; border: none; border-radius: 8px;
-            background: linear-gradient(90deg, var(--neon-blue), #00a8ff);
-            color: #000; font-family: 'Orbitron'; font-weight: 900; font-size: 18px;
-            cursor: pointer; transition: 0.2s; margin-top: 10px;
+        .shop-grid { display: grid; gap: 12px; margin: 20px 0; text-align: left; }
+        .shop-item {
+            background: rgba(255,255,255,0.03); border: 1px solid #333;
+            padding: 12px; border-radius: 12px;
+            display: flex; justify-content: space-between; align-items: center;
         }
-        .main-btn:active { transform: scale(0.98); filter: brightness(0.8); }
+        .shop-item.locked { opacity: 0.5; }
+        .item-name { color: #fff; font-weight: bold; font-size: 14px; }
+        .item-desc { color: #666; font-size: 10px; }
+        .item-price { color: #ffd700; font-weight: 900; font-family: monospace; }
 
-        .upgrade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .upg-item {
-            background: rgba(255,255,255,0.03); border: 1px solid #333; padding: 12px; border-radius: 8px;
-            text-align: left; transition: 0.2s;
+        /* FX */
+        .flash {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: #fff; pointer-events: none; opacity: 0; z-index: 20;
         }
-        .upg-item:active { background: rgba(255,255,255,0.1); }
-        .upg-title { font-size: 12px; color: var(--neon-blue); font-weight: bold; }
-        .upg-lvl { font-size: 10px; color: #666; margin: 4px 0; }
-        .upg-cost { font-size: 14px; color: var(--neon-gold); font-family: 'Orbitron'; float: right; }
-
-        /* NOTIFICATIONS */
-        #float-layer { position: absolute; width: 100%; height: 100%; pointer-events: none; }
-        .float-txt {
-            position: absolute; font-family: 'Orbitron'; font-weight: bold; font-size: 24px;
-            text-shadow: 0 2px 0 #000; animation: floatUp 0.8s ease-out forwards;
-        }
-        @keyframes floatUp { 0%{opacity:1; transform:translateY(0) scale(0.5);} 100%{opacity:0; transform:translateY(-80px) scale(1.2);} }
-
-        /* SCANLINE EFFECT */
-        .scanlines {
-            position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50;
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
-            background-size: 100% 4px; opacity: 0.3;
+        @keyframes floatUp { 0%{opacity:1; transform:translateY(0);} 100%{opacity:0; transform:translateY(-50px);} }
+        .float-msg {
+            position: absolute; color: #fff; font-weight: 900; font-size: 24px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5); pointer-events: none;
+            animation: floatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
     </style>
 </head>
 <body>
+    <div class="vignette"></div>
+    <div class="flash" id="flash-fx"></div>
+    <canvas id="cvs"></canvas>
 
-    <div class="scanlines"></div>
-    <canvas id="game"></canvas>
-
-    <div id="ui-layer">
-        <div class="hud-top">
-            <div class="hud-panel">
-                <div class="label">ДАВЛЕНИЕ</div>
-                <div class="bar-wrap"><div class="bar-fill" id="water-fill"></div></div>
+    <div id="ui">
+        <div class="hud">
+            <div class="widget">
+                <div class="widget-label">PRESSURE</div>
+                <div class="bar-track"><div class="bar-fill fill-water" id="ui-water"></div></div>
             </div>
-            <div class="hud-panel">
-                <div class="label">СЧЕТ</div>
-                <div class="value money" id="score-val">$0</div>
+            <div class="widget" style="min-width: 100px; align-items: center;">
+                <div class="widget-label">CAPITAL</div>
+                <div class="widget-val" id="ui-money">$0</div>
             </div>
-            <div class="hud-panel">
-                <div class="label">УГРОЗА</div>
-                <div class="bar-wrap"><div class="bar-fill" id="heat-fill"></div></div>
-            </div>
-        </div>
-
-        <div id="float-layer"></div>
-
-        <div class="controls">
-            <div class="stick-area">
-                <div id="btn-l" class="btn btn-left">⬅</div>
-                <div id="btn-r" class="btn btn-right">➡</div>
-                <div id="btn-refill" class="btn btn-refill">⚡ ВОДА</div>
-            </div>
-            <div class="stick-area">
-                <div id="btn-u" class="btn btn-up">⬆</div>
-                <div id="btn-d" class="btn btn-down">⬇</div>
-                <div id="btn-shoot" class="btn btn-shoot">🔥</div>
+            <div class="widget">
+                <div class="widget-label">CHAOS LEVEL</div>
+                <div class="bar-track"><div class="bar-fill fill-heat" id="ui-heat"></div></div>
             </div>
         </div>
-    </div>
 
-    <!-- START MENU -->
-    <div id="modal-start" class="modal-overlay active">
-        <div class="modal-card">
-            <h1>INFERNO CITY</h1>
-            <p>Город в огне. Ты - последняя линия обороны. Туши пожары, спасай людей, зарабатывай на апгрейды.</p>
-            <div style="color: var(--neon-blue); font-size: 12px; margin-bottom: 20px;">ПРОГРЕСС СОХРАНЯЕТСЯ АВТОМАТИЧЕСКИ</div>
-            <button class="main-btn" onclick="Game.start()">ВЫЕЗД НА ВЫЗОВ</button>
+        <div id="fx-layer" style="position:absolute; width:100%; height:100%;"></div>
+
+        <div class="controls-layer">
+            <div class="btn-group">
+                <div id="btn-l" class="btn b-left">←</div>
+                <div id="btn-r" class="btn b-right">→</div>
+                <div id="btn-refill" class="btn b-refill">REFILL</div>
+            </div>
+            <div class="btn-group">
+                <div id="btn-u" class="btn b-up">↑</div>
+                <div id="btn-d" class="btn b-down">↓</div>
+                <div id="btn-shoot" class="btn b-shoot"></div>
+            </div>
         </div>
     </div>
 
-    <!-- SHOP MENU -->
-    <div id="modal-shop" class="modal-overlay">
-        <div class="modal-card">
-            <h2>МИССИЯ ЗАВЕРШЕНА</h2>
-            <div id="level-stats" style="margin-bottom: 15px; font-size: 12px; color: #ccc;"></div>
+    <!-- START -->
+    <div id="screen-start" class="modal-bg visible">
+        <div class="card">
+            <h1>INFERNO</h1>
+            <div class="subtitle">REALISTIC FIRE SIMULATOR</div>
+            <div style="margin-bottom: 30px; font-size: 12px; line-height: 1.6; color: #888;">
+                • Realistic Fluid Physics<br>
+                • Dynamic Weather & Lighting<br>
+                • Save Civilians to earn Capital
+            </div>
+            <button class="cta-btn" onclick="Game.start()">DEPLOY UNIT</button>
+        </div>
+    </div>
+
+    <!-- SHOP -->
+    <div id="screen-shop" class="modal-bg">
+        <div class="card">
+            <h1 style="font-size: 24px;">SECTOR CLEARED</h1>
+            <div id="shop-msg" class="subtitle">Mission Report...</div>
             
-            <div class="upgrade-grid">
-                <div class="upg-item" onclick="Game.upgrade('pressure')">
-                    <div class="upg-title">ТУРБО НАСОС</div>
-                    <div class="upg-lvl" id="lvl-pressure">LVL 1</div>
-                    <div class="upg-cost" id="cost-pressure">$100</div>
+            <div class="shop-grid">
+                <div class="shop-item" onclick="Game.buy('pressure')">
+                    <div>
+                        <div class="item-name">HIGH PRESSURE PUMP</div>
+                        <div class="item-desc" id="lvl-pressure">Increases Range</div>
+                    </div>
+                    <div class="item-price" id="price-pressure">$200</div>
                 </div>
-                <div class="upg-item" onclick="Game.upgrade('tank')">
-                    <div class="upg-title">БАК ТИТАН</div>
-                    <div class="upg-lvl" id="lvl-tank">LVL 1</div>
-                    <div class="upg-cost" id="cost-tank">$150</div>
+                <div class="shop-item" onclick="Game.buy('tank')">
+                    <div>
+                        <div class="item-name">TITANIUM TANK</div>
+                        <div class="item-desc" id="lvl-tank">Capacity +50%</div>
+                    </div>
+                    <div class="item-price" id="price-tank">$300</div>
                 </div>
-                <div class="upg-item" onclick="Game.upgrade('speed')">
-                    <div class="upg-title">ДВИГАТЕЛЬ V8</div>
-                    <div class="upg-lvl" id="lvl-speed">LVL 1</div>
-                    <div class="upg-cost" id="cost-speed">$200</div>
-                </div>
-                <div class="upg-item" onclick="Game.upgrade('splitter')">
-                    <div class="upg-title">СПЛИТТЕР</div>
-                    <div class="upg-lvl" id="lvl-splitter">OFF</div>
-                    <div class="upg-cost" id="cost-splitter">$500</div>
+                <div class="shop-item" onclick="Game.buy('engine')">
+                    <div>
+                        <div class="item-name">TURBO DIESEL</div>
+                        <div class="item-desc" id="lvl-engine">Movement Speed</div>
+                    </div>
+                    <div class="item-price" id="price-engine">$400</div>
                 </div>
             </div>
-            <button class="main-btn" onclick="Game.nextLevel()">СЛЕДУЮЩИЙ РАЙОН >></button>
+            <button class="cta-btn" onclick="Game.nextLevel()">NEXT SECTOR</button>
         </div>
     </div>
 
     <script>
-        // --- SYSTEM & CONFIG ---
-        const cvs = document.getElementById('game');
+        // === CORE ENGINE ===
+        const cvs = document.getElementById('cvs');
         const ctx = cvs.getContext('2d', { alpha: false, desynchronized: true });
+        
+        // CONFIG
+        const CFG = {
+            gravity: 0.25,
+            groundY: 0,
+            particles: 1500,
+            colors: {
+                fire: ['#ff4d00', '#ffaa00', '#ffcc00'],
+                smoke: ['#111', '#222', '#333'],
+                water: '#aeefff'
+            }
+        };
 
-        // Responsive Canvas
+        // STATE
+        const State = {
+            money: 0,
+            level: 1,
+            upgrades: { pressure: 1, tank: 1, engine: 1 },
+            load() {
+                const d = localStorage.getItem('inferno_real_v1');
+                if(d) {
+                    const p = JSON.parse(d);
+                    this.money = p.money;
+                    this.level = p.level;
+                    this.upgrades = p.upgrades;
+                }
+            },
+            save() {
+                localStorage.setItem('inferno_real_v1', JSON.stringify({
+                    money: this.money, level: this.level, upgrades: this.upgrades
+                }));
+            }
+        };
+        State.load();
+
+        // RESIZE & H-DPI
         let W, H, DPR;
         const resize = () => {
             W = window.innerWidth;
             H = window.innerHeight;
-            DPR = Math.min(2, window.devicePixelRatio); // Optimization cap
+            DPR = Math.min(2, window.devicePixelRatio);
             cvs.width = W * DPR;
             cvs.height = H * DPR;
             ctx.scale(DPR, DPR);
+            CFG.groundY = H - 60;
         };
         window.addEventListener('resize', resize);
         resize();
 
-        // Save System
-        const Save = {
-            data: {
-                money: 0,
-                level: 1,
-                upgrades: {
-                    pressure: 1,
-                    tank: 1,
-                    speed: 1,
-                    splitter: 0
-                }
-            },
-            load() {
-                const s = localStorage.getItem('inferno_save');
-                if(s) this.data = JSON.parse(s);
-            },
-            save() {
-                localStorage.setItem('inferno_save', JSON.stringify(this.data));
-            }
-        };
-        Save.load();
-
-        // Utils
-        const rand = (min, max) => Math.random() * (max - min) + min;
-        const vibrate = (ms) => { if(navigator.vibrate) navigator.vibrate(ms); };
-        
-        // --- GRAPHICS ENGINE ---
-        const Camera = { x: 0, shake: 0 };
-        
+        // === OBJECT POOLING (OPTIMIZATION) ===
         class Particle {
             constructor() { this.active = false; }
-            spawn(x, y, type, vx, vy) {
-                this.x = x; this.y = y; this.type = type;
+            spawn(x, y, type, vx, vy, size) {
+                this.x = x; this.y = y;
                 this.vx = vx; this.vy = vy;
-                this.life = 1.0; this.active = true;
-                
-                if(type === 'fire') {
-                    this.size = rand(10, 25);
-                    this.decay = rand(0.02, 0.04);
-                    this.color = `hsla(${rand(0, 40)}, 100%, 50%,`; 
-                } else if(type === 'water') {
-                    this.size = rand(3, 6);
-                    this.decay = 0;
-                    this.color = '#00f3ff';
-                } else if(type === 'smoke') {
-                    this.size = rand(10, 30);
-                    this.decay = 0.01;
-                    this.color = '#333';
-                } else if(type === 'spark') {
-                    this.size = rand(1, 3);
-                    this.decay = 0.05;
-                    this.color = '#fff';
-                } else if(type === 'steam') {
-                    this.size = rand(5, 15);
-                    this.decay = 0.03;
-                    this.color = '#fff';
-                }
-            }
-            update() {
-                if(!this.active) return;
-                this.life -= this.decay;
-                
-                // Physics
-                if(this.type === 'water') {
-                    this.vx += Game.wind * 0.01;
-                    this.vy += 0.2; // Gravity
-                    if(this.y > H - 50) this.life = 0; // Ground hit
-                } else if(this.type === 'fire') {
-                    this.vy += -0.05; // Rise
-                    this.size *= 0.95;
-                } else if(this.type === 'smoke') {
-                    this.vx += Game.wind * 0.02;
-                    this.vy -= 0.02;
-                    this.size *= 1.01;
-                }
-
-                this.x += this.vx;
-                this.y += this.vy;
-
-                if(this.life <= 0) this.active = false;
-            }
-            draw() {
-                if(!this.active) return;
-                
-                if(this.type === 'fire') {
-                    ctx.globalCompositeOperation = 'lighter'; // Additive blending for GLOW
-                    ctx.fillStyle = this.color + this.life + ')';
-                } else if(this.type === 'water') {
-                    ctx.globalCompositeOperation = 'source-over';
-                    ctx.fillStyle = this.color;
-                } else if(this.type === 'smoke') {
-                    ctx.globalCompositeOperation = 'source-over';
-                    ctx.fillStyle = `rgba(50,50,50,${this.life * 0.5})`;
-                } else {
-                    ctx.globalCompositeOperation = 'lighter';
-                    ctx.fillStyle = `rgba(255,255,255,${this.life})`;
-                }
-
-                ctx.beginPath();
-                ctx.arc(this.x - Camera.x, this.y, this.size, 0, Math.PI*2);
-                ctx.fill();
-                ctx.globalCompositeOperation = 'source-over';
+                this.type = type; // 0: water, 1: fire, 2: smoke, 3: spark, 4: steam
+                this.life = 1.0;
+                this.size = size;
+                this.active = true;
+                this.seed = Math.random();
             }
         }
 
-        const Particles = {
-            pool: new Array(800).fill().map(() => new Particle()),
-            spawn(x, y, type, vx = 0, vy = 0) {
-                const p = this.pool.find(p => !p.active);
-                if(p) p.spawn(x, y, type, vx, vy);
-            },
-            updateAndDraw() {
-                this.pool.forEach(p => { p.update(); p.draw(); });
+        const Pool = {
+            items: new Array(CFG.particles).fill().map(() => new Particle()),
+            get(x, y, type, vx, vy, size) {
+                for(let i=0; i<this.items.length; i++) {
+                    if(!this.items[i].active) {
+                        this.items[i].spawn(x, y, type, vx, vy, size);
+                        return;
+                    }
+                }
             }
         };
 
-        // --- GAME OBJECTS ---
+        // === GAME ENTITIES ===
+        const Camera = { x: 0, shake: 0 };
+
         class Building {
             constructor(x, w, h) {
                 this.x = x; this.w = w; this.h = h;
                 this.windows = [];
-                let floors = Math.floor(h / 60);
-                let cols = Math.floor(w / 40);
-                
-                for(let f=0; f<floors; f++) {
+                const rows = Math.floor(h / 70);
+                const cols = Math.floor(w / 45);
+                for(let r=0; r<rows; r++) {
                     for(let c=0; c<cols; c++) {
                         this.windows.push({
-                            x: x + 5 + c * 40,
-                            y: (H - 50) - (f * 60) - 50,
-                            w: 30, h: 40,
-                            hp: 0, max: 100,
-                            hasPerson: Math.random() < 0.2,
+                            x: x + 10 + c*45,
+                            y: CFG.groundY - (r*70) - 60,
+                            w: 30, h: 45,
+                            hp: 0, // 0-100 fire
+                            max: 100,
+                            person: Math.random() < 0.25,
                             saved: false, dead: false
                         });
                     }
                 }
             }
-            draw() {
-                // Building Silhouette
-                ctx.fillStyle = '#0a0a12';
-                ctx.fillRect(this.x - Camera.x, H - 50 - this.h, this.w, this.h);
-                // Neon Edge
-                ctx.strokeStyle = '#1a1a2e';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(this.x - Camera.x, H - 50 - this.h, this.w, this.h);
 
-                this.windows.forEach(win => {
-                    let rx = win.x - Camera.x;
+            draw(ctx, camX) {
+                // Realistic Window Reflection/Interior
+                ctx.fillStyle = '#050505';
+                ctx.fillRect(this.x - camX, CFG.groundY - this.h, this.w, this.h);
+                
+                // Building Texture (Subtle grid)
+                ctx.strokeStyle = '#1a1a20';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x - camX, CFG.groundY - this.h, this.w, this.h);
+
+                this.windows.forEach(w => {
+                    let wx = w.x - camX;
                     
-                    // Window Base
-                    if(win.hp >= 100) ctx.fillStyle = '#000'; // Burnt
-                    else if(win.hp > 0) {
-                        // Dynamic Fire Light
-                        let flicker = Math.random() * 0.5 + 0.5;
-                        ctx.fillStyle = `rgba(255, ${100 - win.hp}, 0, ${flicker})`;
+                    // Window State
+                    if(w.hp >= 100) {
+                        ctx.fillStyle = '#000'; // Burnt
+                    } else if(w.hp > 0) {
+                        // Interior Glow
+                        let flick = 0.5 + Math.random()*0.5;
+                        ctx.fillStyle = `rgba(255, ${150 - w.hp}, 50, ${flick})`;
                         
-                        // Spawn Fire Particles
-                        if(Math.random() < win.hp / 200) {
-                            Particles.spawn(win.x + rand(0, win.w), win.y + win.h, 'fire', rand(-1,1), rand(-2,-4));
-                            if(Math.random()<0.2) Particles.spawn(win.x + win.w/2, win.y, 'smoke', rand(-0.5,0.5), -2);
+                        // Emit Particles
+                        if(Math.random() < w.hp/300) {
+                            Pool.get(w.x + Math.random()*w.w, w.y + w.h, 1, (Math.random()-0.5)*2, -2 - Math.random()*2, 10 + Math.random()*15);
+                            if(Math.random() < 0.3) Pool.get(w.x + w.w/2, w.y, 2, (Math.random()-0.5)+Game.wind, -1, 20);
                         }
                     } else {
-                        ctx.fillStyle = '#112'; // Dark window
-                        if(Math.random() < 0.001) ctx.fillStyle = '#224'; // Random room light
+                        ctx.fillStyle = '#0a0e14'; // Dark glass
+                        // Fake Reflection
+                        ctx.fillStyle = `rgba(20, 30, 50, ${0.3 + Math.random()*0.1})`;
                     }
                     
-                    ctx.fillRect(rx, win.y, win.w, win.h);
+                    ctx.fillRect(wx, w.y, w.w, w.h);
+                    
+                    // Frame
+                    ctx.strokeStyle = '#222';
+                    ctx.strokeRect(wx, w.y, w.w, w.h);
 
                     // Person
-                    if(win.hasPerson && !win.saved && !win.dead) {
+                    if(w.person && !w.saved && !w.dead) {
                         ctx.fillStyle = '#fff';
                         ctx.font = '20px Arial';
-                        ctx.fillText('🙋', rx + 5, win.y + 30);
-                        if(win.hp > 0) {
-                            ctx.fillStyle = '#f00';
-                            ctx.font = 'bold 12px Arial';
-                            ctx.fillText('SOS', rx + 2, win.y - 5);
+                        ctx.fillText('🙋', wx + 5, w.y + 35);
+                        if(w.hp > 0) {
+                            ctx.fillStyle = '#f33';
+                            ctx.font = 'bold 10px Arial';
+                            ctx.fillText('HELP', wx + 2, w.y - 5);
                         }
                     }
                 });
@@ -466,355 +440,398 @@
         }
 
         const Truck = {
-            x: 50, y: 0, w: 120, h: 50,
-            angle: -0.7, water: 100, maxWater: 100,
+            x: 100, y: 0, w: 130, h: 45, angle: -0.5,
+            water: 100, maxWater: 100,
+            color: '#e62e2e',
             update() {
-                this.y = H - 70;
-                // Movement
-                if(Input.l && this.x > 0) this.x -= (2 + Save.data.upgrades.speed);
-                if(Input.r && this.x < Game.worldWidth - this.w) this.x += (2 + Save.data.upgrades.speed);
+                this.y = CFG.groundY - 55;
+                let spd = 3 + State.upgrades.engine;
+                if(Input.l && this.x > 50) this.x -= spd;
+                if(Input.r && this.x < Game.width - 150) this.x += spd;
                 
-                // Cannon
-                if(Input.u && this.angle > -2.5) this.angle -= 0.05;
+                if(Input.u && this.angle > -2.2) this.angle -= 0.05;
                 if(Input.d && this.angle < -0.1) this.angle += 0.05;
 
-                // Camera follow
-                Camera.x = this.x - W/2 + this.w/2;
-                if(Camera.x < 0) Camera.x = 0;
-                if(Camera.x > Game.worldWidth - W) Camera.x = Game.worldWidth - W;
+                // Camera Follow
+                let targetCam = this.x - W/2 + this.w/2;
+                Camera.x += (targetCam - Camera.x) * 0.1; // Smooth pan
+                Camera.x = Math.max(0, Math.min(Camera.x, Game.width - W));
 
                 // Refill
                 if(Input.refill) {
-                    if(this.x < 150) { // Hydrant Zone
-                        if(this.water < this.maxWater) {
-                            this.water += 2;
-                            if(this.water > this.maxWater) this.water = this.maxWater;
-                        }
+                    if(this.x < 150) {
+                        this.water = Math.min(this.water + 1.5, this.maxWater);
                     } else {
-                        UI.float("ГИДРАНТ СЛЕВА!", W/2, H/2, 'red');
+                        UI.msg('HYDRANT IS AT START!', this.x - Camera.x, this.y - 50);
                     }
                 }
 
                 // Shoot
                 if(Input.shoot && this.water > 0) {
-                    this.water -= 0.5;
-                    if(Math.floor(this.water) % 5 === 0) vibrate(10);
+                    this.water -= 0.4;
+                    if(Math.random()>0.5 && navigator.vibrate) navigator.vibrate(5);
                     
-                    let power = 10 + Save.data.upgrades.pressure * 2;
-                    let nozzleX = this.x + 80;
-                    let nozzleY = this.y;
+                    let pow = 12 + State.upgrades.pressure * 3;
+                    let nx = this.x + 80, ny = this.y;
                     
-                    // Main stream
-                    Particles.spawn(nozzleX, nozzleY, 'water', Math.cos(this.angle)*power, Math.sin(this.angle)*power);
-                    
-                    // Splitter Upgrade
-                    if(Save.data.upgrades.splitter) {
-                        Particles.spawn(nozzleX, nozzleY, 'water', Math.cos(this.angle-0.1)*power, Math.sin(this.angle-0.1)*power);
-                        Particles.spawn(nozzleX, nozzleY, 'water', Math.cos(this.angle+0.1)*power, Math.sin(this.angle+0.1)*power);
-                    }
+                    // Water Physics Scatter
+                    let spread = 0.05;
+                    Pool.get(nx, ny, 0, 
+                        Math.cos(this.angle + (Math.random()-0.5)*spread) * pow,
+                        Math.sin(this.angle + (Math.random()-0.5)*spread) * pow,
+                        3 + Math.random()*3
+                    );
                 }
             },
-            draw() {
-                let rx = this.x - Camera.x;
+            draw(ctx, camX) {
+                let tx = this.x - camX;
+                
                 // Shadow
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(rx + 10, this.y + 45, this.w - 20, 10);
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(tx + 10, this.y + 45, this.w - 20, 8);
 
                 // Body
-                ctx.fillStyle = '#e00';
-                ctx.fillRect(rx, this.y, this.w, this.h);
-                // Stripe
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(rx - 5, this.y + 20, this.w + 10, 10);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(tx, this.y, this.w, this.h);
                 
-                // Wheels
+                // Details
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(tx, this.y + 15, this.w, 8); // Stripe
                 ctx.fillStyle = '#111';
-                ctx.beginPath(); ctx.arc(rx + 30, this.y + 50, 15, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(rx + 90, this.y + 50, 15, 0, Math.PI*2); ctx.fill();
-                // Rims
-                ctx.strokeStyle = '#888'; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.arc(rx + 30, this.y + 50, 8, 0, Math.PI*2); ctx.stroke();
-                ctx.beginPath(); ctx.arc(rx + 90, this.y + 50, 8, 0, Math.PI*2); ctx.stroke();
+                ctx.fillRect(tx + 5, this.y + 5, 20, 35); // Grill
 
                 // Cannon
                 ctx.save();
-                ctx.translate(rx + 80, this.y);
+                ctx.translate(tx + 80, this.y + 5);
                 ctx.rotate(this.angle);
-                ctx.fillStyle = '#aaa';
-                ctx.fillRect(0, -5, 40, 10);
-                ctx.fillStyle = '#444'; // Base
-                ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#888';
+                ctx.fillRect(0, -6, 40, 12);
                 ctx.restore();
 
-                // Lights
-                let blink = Math.sin(Date.now()/100) > 0;
-                ctx.fillStyle = blink ? '#f00' : '#500';
-                ctx.shadowBlur = blink ? 20 : 0; ctx.shadowColor = '#f00';
-                ctx.fillRect(rx + 10, this.y - 10, 15, 10);
-                ctx.shadowBlur = 0;
+                // Wheels
+                ctx.fillStyle = '#1a1a1a';
+                let wheelY = this.y + 40;
+                ctx.beginPath(); ctx.arc(tx + 30, wheelY, 14, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(tx + 100, wheelY, 14, 0, Math.PI*2); ctx.fill();
+                
+                // Lights (Flashing)
+                if(Math.floor(Date.now()/100)%2===0) {
+                    ctx.fillStyle = '#f00';
+                    ctx.shadowBlur = 20; ctx.shadowColor = 'red';
+                    ctx.fillRect(tx + 15, this.y - 8, 20, 8);
+                    ctx.shadowBlur = 0;
+                }
             }
         };
 
-        // --- GAME LOGIC ---
+        // === LOGIC ===
         const Game = {
-            active: false,
+            running: false,
             buildings: [],
+            width: 2000,
             wind: 0,
             heat: 0,
             maxHeat: 1000,
-            worldWidth: 2000,
 
             start() {
-                document.getElementById('modal-start').classList.remove('active');
+                document.querySelector('.visible').classList.remove('visible');
                 this.loadLevel();
-                this.active = true;
-                loop();
+                this.running = true;
+                Loop();
             },
 
             loadLevel() {
                 this.buildings = [];
                 this.heat = 0;
-                this.worldWidth = 1500 + Save.data.level * 500;
-                Truck.x = 100;
-                Truck.maxWater = 100 + Save.data.upgrades.tank * 50;
+                this.wind = (Math.random() - 0.5) * (1 + State.level*0.5);
+                this.width = 1500 + State.level * 500;
+                Truck.maxWater = 100 + State.upgrades.tank * 50;
                 Truck.water = Truck.maxWater;
-                
-                // Wind System
-                this.wind = (Math.random() - 0.5) * (Save.data.level * 2);
-                if(Math.abs(this.wind) > 1) UI.float(this.wind > 0 ? "ВЕТЕР >>" : "<< ВЕТЕР", W/2, H/3, "#0ff");
+                Truck.x = 80;
 
                 // Generate City
-                let cx = 250;
-                let bCount = 3 + Math.floor(Save.data.level / 2);
-                for(let i=0; i<bCount; i++) {
-                    let w = rand(120, 200);
-                    let h = rand(150, 250 + Save.data.level * 30);
-                    this.buildings.push(new Building(cx, w, h));
-                    cx += w + rand(50, 100);
+                let bx = 250;
+                let count = 2 + Math.ceil(State.level/2);
+                for(let i=0; i<count; i++) {
+                    let w = 100 + Math.random()*150;
+                    let h = 200 + Math.random() * (100 + State.level*20);
+                    this.buildings.push(new Building(bx, w, h));
+                    bx += w + 50 + Math.random()*100;
                 }
 
                 // Ignite
-                let wins = this.buildings.flatMap(b => b.windows);
-                let fires = 3 + Save.data.level;
+                let targets = this.buildings.flatMap(b => b.windows);
+                let fires = 3 + State.level;
                 for(let i=0; i<fires; i++) {
-                    wins[Math.floor(Math.random()*wins.length)].hp = 50;
+                    targets[Math.floor(Math.random()*targets.length)].hp = 50;
                 }
             },
 
             update() {
                 Truck.update();
-                
-                // Particles Collision
-                Particles.pool.forEach(p => {
-                    if(!p.active || p.type !== 'water') return;
-                    
-                    this.buildings.forEach(b => {
-                        // Simple bounding box check optimization
-                        if(p.x < b.x || p.x > b.x + b.w) return;
 
-                        b.windows.forEach(w => {
-                            if(w.hp > 0 && w.hp < 100) {
-                                if(p.x > w.x && p.x < w.x + w.w && p.y > w.y && p.y < w.y + w.h) {
-                                    p.active = false; // Water consumed
-                                    // Steam effect
-                                    Particles.spawn(p.x, p.y, 'steam', rand(-1,1), -1);
-                                    
-                                    w.hp -= 2;
-                                    if(w.hp <= 0) {
-                                        w.hp = 0;
-                                        Save.data.money += 10;
-                                        UI.float("+$10", w.x - Camera.x, w.y, "gold");
+                // Particles
+                Pool.items.forEach(p => {
+                    if(!p.active) return;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 0.01;
+
+                    if(p.type === 0) { // Water
+                        p.vy += CFG.gravity; // Gravity
+                        p.vx += this.wind * 0.05;
+                        
+                        // Collision
+                        if(p.y > CFG.groundY) { p.active = false; return; } // Ground
+                        
+                        // Check Windows
+                        this.buildings.forEach(b => {
+                            if(p.x > b.x && p.x < b.x + b.w) {
+                                b.windows.forEach(w => {
+                                    if(w.hp > 0 && w.hp < 100 && p.x > w.x && p.x < w.x+w.w && p.y > w.y && p.y < w.y+w.h) {
+                                        p.active = false;
+                                        w.hp -= 1.5;
+                                        // Steam
+                                        Pool.get(p.x, p.y, 4, (Math.random()-0.5)*2, -1, 15);
                                         
-                                        if(w.hasPerson && !w.dead) {
-                                            w.saved = true;
-                                            Save.data.money += 100;
-                                            UI.float("СПАСЕН! +$100", w.x - Camera.x, w.y - 30, "#0f0");
-                                            vibrate(100);
-                                            // Sparkle
-                                            for(let k=0; k<10; k++) Particles.spawn(w.x, w.y, 'spark', rand(-5,5), rand(-5,5));
+                                        if(w.hp <= 0) {
+                                            w.hp = 0;
+                                            State.money += 15;
+                                            UI.msg('+$15', w.x - Camera.x, w.y);
+                                            if(w.person && !w.saved) {
+                                                w.saved = true;
+                                                State.money += 100;
+                                                UI.msg('SAVED! +$100', w.x-Camera.x, w.y-20, '#0f0');
+                                                if(navigator.vibrate) navigator.vibrate([50,50,50]);
+                                            }
                                         }
                                     }
-                                }
+                                });
                             }
                         });
-                    });
+
+                    } else if(p.type === 1) { // Fire
+                        p.vy += -0.05; // Rise
+                        p.size *= 0.97;
+                        if(p.life < 0.1) p.active = false;
+                    } else if(p.type === 2) { // Smoke
+                        p.vx += this.wind * 0.1;
+                        p.size *= 1.02;
+                        p.life -= 0.005; // Smoke lasts longer
+                    } else if (p.type === 4) { // Steam
+                        p.vy -= 0.1;
+                        p.size *= 1.05;
+                        p.life -= 0.02;
+                    }
+
+                    if(p.life <= 0) p.active = false;
                 });
 
-                // Fire Logic
+                // Simulation
                 let burning = 0;
                 this.buildings.forEach(b => {
                     b.windows.forEach(w => {
                         if(w.hp > 0 && w.hp < 100) {
                             burning++;
-                            w.hp += 0.05 + (Save.data.level * 0.01);
+                            w.hp += 0.05 + (State.level * 0.01);
+                            this.heat += 0.05;
+                            
                             if(w.hp >= 100) {
-                                w.hp = 100; // Burnt
-                                if(w.hasPerson && !w.saved && !w.dead) {
+                                w.hp = 100;
+                                if(w.person && !w.saved && !w.dead) {
                                     w.dead = true;
-                                    this.heat += 200; // Penalty
-                                    UI.float("ПОТЕРЯ!", w.x - Camera.x, w.y, "red");
-                                    vibrate(200);
+                                    this.heat += 150;
+                                    UI.msg('LOST!', w.x - Camera.x, w.y, '#f00');
                                 }
                             }
                         }
                     });
                 });
 
-                this.heat += burning * 0.1;
-                if(this.heat >= this.maxHeat) {
-                    // Fail logic could go here (reset level)
-                    this.heat = this.maxHeat;
-                }
-
-                // Check Win
-                if(burning === 0 && Particles.pool.filter(p => p.active && p.type==='water').length === 0) {
-                     // Add small delay
-                     if(!this.winTimer) this.winTimer = setTimeout(() => this.levelComplete(), 1000);
+                // Win Condition
+                if(burning === 0 && Pool.items.filter(p => p.active && p.type===0).length === 0) {
+                    if(!this.winTimer) this.winTimer = setTimeout(() => this.finish(), 1500);
                 } else {
                     this.winTimer = null;
                 }
+
+                if(this.heat > this.maxHeat) this.heat = this.maxHeat; // Cap heat
             },
 
             draw() {
-                // Sky
-                let grad = ctx.createLinearGradient(0, 0, 0, H);
-                grad.addColorStop(0, '#020205');
-                grad.addColorStop(1, '#1a1a2e');
-                ctx.fillStyle = grad;
+                // Dynamic Sky Color based on Heat
+                let heatRatio = this.heat / this.maxHeat;
+                let r = 20 + heatRatio * 60; 
+                let b = 30 - heatRatio * 20;
+                ctx.fillStyle = `rgb(${r}, 10, ${b})`;
                 ctx.fillRect(0, 0, W, H);
 
-                // Parallax Stars/City
+                // Stars (Parallax)
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                for(let i=0; i<50; i++) {
-                    let sx = (i * 100 - Camera.x * 0.2) % W;
+                for(let i=0; i<60; i++) {
+                    let sx = (i * 40 - Camera.x * 0.1) % W;
                     if(sx < 0) sx += W;
-                    ctx.fillRect(sx, rand(0, H/2), 2, 2);
+                    ctx.fillRect(sx, (i*13)%H/2, 1, 1);
                 }
 
-                // Ground
-                ctx.fillStyle = '#08080c';
-                ctx.fillRect(0, H - 50, W, 50);
-                ctx.fillStyle = '#111';
-                ctx.fillRect(0, H - 50, W, 4); // Curb
+                // === REFLECTION PASS (The "Realism" Hack) ===
+                // We draw buildings and fire upside down, masked, with low opacity
+                ctx.save();
+                ctx.translate(0, CFG.groundY * 2);
+                ctx.scale(1, -1);
+                ctx.globalAlpha = 0.3;
+                
+                this.buildings.forEach(b => b.draw(ctx, Camera.x));
+                // Draw only Fire/Water particles in reflection
+                Pool.items.forEach(p => {
+                    if(!p.active || (p.type !== 1 && p.type !== 0)) return;
+                    ctx.fillStyle = p.type === 1 ? '#f80' : '#0ff';
+                    ctx.beginPath(); ctx.arc(p.x - Camera.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                });
+                ctx.restore();
 
-                // Hydrant (Static)
+                // Ground Line
+                ctx.fillStyle = '#0a0a0c';
+                ctx.fillRect(0, CFG.groundY, W, H - CFG.groundY);
+                
+                // Wet Asphalt Shine
+                let grad = ctx.createLinearGradient(0, CFG.groundY, 0, CFG.groundY + 50);
+                grad.addColorStop(0, `rgba(255, 100, 50, ${heatRatio * 0.3})`);
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, CFG.groundY, W, 50);
+
+                // Hydrant
                 let hyX = 100 - Camera.x;
-                if(hyX > -50 && hyX < W + 50) {
-                    ctx.fillStyle = '#f33';
-                    ctx.fillRect(hyX, H - 70, 20, 20);
+                if(hyX > -50 && hyX < W+50) {
+                    ctx.fillStyle = '#f22';
+                    ctx.fillRect(hyX, CFG.groundY - 20, 15, 20);
                 }
 
-                // Game Objects
-                this.buildings.forEach(b => b.draw());
-                Truck.draw();
-                Particles.updateAndDraw();
+                // Main Draw Pass
+                this.buildings.forEach(b => b.draw(ctx, Camera.x));
+                Truck.draw(ctx, Camera.x);
+
+                // Particles Draw
+                Pool.items.forEach(p => {
+                    if(!p.active) return;
+                    let px = p.x - Camera.x;
+                    if(px < -50 || px > W+50) return; // Culling
+
+                    if(p.type === 1) { // Fire
+                        ctx.globalCompositeOperation = 'lighter';
+                        let colIdx = Math.floor(p.seed * 3);
+                        ctx.fillStyle = CFG.colors.fire[colIdx];
+                        ctx.globalAlpha = p.life;
+                    } else if (p.type === 0) { // Water
+                        ctx.globalCompositeOperation = 'screen';
+                        ctx.fillStyle = CFG.colors.water;
+                        ctx.globalAlpha = 0.8;
+                    } else if (p.type === 2) { // Smoke
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.fillStyle = 'rgba(20,20,20,0.4)';
+                        ctx.globalAlpha = p.life * 0.5;
+                    } else { // Steam
+                         ctx.globalCompositeOperation = 'overlay';
+                         ctx.fillStyle = '#fff';
+                         ctx.globalAlpha = p.life * 0.3;
+                    }
+
+                    ctx.beginPath();
+                    ctx.arc(px, p.y, p.size, 0, Math.PI*2);
+                    ctx.fill();
+                });
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = 1;
 
                 // UI Sync
-                document.getElementById('score-val').innerText = '$' + Save.data.money;
-                document.getElementById('water-fill').style.width = (Truck.water / Truck.maxWater * 100) + '%';
-                document.getElementById('heat-fill').style.width = (this.heat / this.maxHeat * 100) + '%';
+                document.getElementById('ui-water').style.width = (Truck.water / Truck.maxWater * 100) + '%';
+                document.getElementById('ui-heat').style.width = (this.heat / this.maxHeat * 100) + '%';
+                document.getElementById('ui-money').innerText = '$' + State.money;
             },
-            
-            levelComplete() {
-                this.active = false;
-                Save.save();
-                document.getElementById('modal-shop').classList.add('active');
-                document.getElementById('level-stats').innerText = `РАЙОН ${Save.data.level} ЗАЧИЩЕН. БАЛАНС: $${Save.data.money}`;
-                this.updateShopUI();
+
+            finish() {
+                this.running = false;
+                State.save();
+                document.getElementById('screen-shop').classList.add('visible');
+                document.getElementById('shop-msg').innerText = `LEVEL ${State.level} COMPLETE. WIND: ${this.wind.toFixed(1)}`;
+                this.updateShop();
             },
-            
-            nextLevel() {
-                Save.data.level++;
-                Save.save();
-                document.getElementById('modal-shop').classList.remove('active');
-                this.loadLevel();
-                this.active = true;
-                loop();
-            },
-            
-            upgrade(type) {
-                let costs = {
-                    pressure: 100 * Save.data.upgrades.pressure,
-                    tank: 150 * Save.data.upgrades.tank,
-                    speed: 200 * Save.data.upgrades.speed,
-                    splitter: 500
-                };
+
+            buy(type) {
+                let costs = { pressure: 200, tank: 300, engine: 400 };
+                let cost = costs[type] * State.upgrades[type];
                 
-                let cost = costs[type];
-                
-                if(Save.data.money >= cost) {
-                    if(type === 'splitter' && Save.data.upgrades.splitter) return;
-                    
-                    Save.data.money -= cost;
-                    Save.data.upgrades[type]++;
-                    Save.save();
-                    this.updateShopUI();
-                    UI.float("КУПЛЕНО!", W/2, H/2, "#0f0");
+                if(State.money >= cost) {
+                    State.money -= cost;
+                    State.upgrades[type]++;
+                    State.save();
+                    UI.msg('UPGRADED', W/2, H/2, '#0f0');
+                    this.updateShop();
                 }
             },
-            
-            updateShopUI() {
-                const up = Save.data.upgrades;
-                document.getElementById('lvl-pressure').innerText = 'LVL ' + up.pressure;
-                document.getElementById('cost-pressure').innerText = '$' + (100 * up.pressure);
+
+            updateShop() {
+                const u = State.upgrades;
+                const c = { pressure: 200, tank: 300, engine: 400 };
                 
-                document.getElementById('lvl-tank').innerText = 'LVL ' + up.tank;
-                document.getElementById('cost-tank').innerText = '$' + (150 * up.tank);
+                document.getElementById('lvl-pressure').innerText = `Lvl ${u.pressure} -> ${u.pressure+1}`;
+                document.getElementById('price-pressure').innerText = '$'+(c.pressure * u.pressure);
                 
-                document.getElementById('lvl-speed').innerText = 'LVL ' + up.speed;
-                document.getElementById('cost-speed').innerText = '$' + (200 * up.speed);
+                document.getElementById('lvl-tank').innerText = `Lvl ${u.tank} -> ${u.tank+1}`;
+                document.getElementById('price-tank').innerText = '$'+(c.tank * u.tank);
                 
-                document.getElementById('lvl-splitter').innerText = up.splitter ? "АКТИВЕН" : "OFF";
-                document.getElementById('cost-splitter').innerText = up.splitter ? "---" : "$500";
-                
-                // Update money header in shop
-                document.getElementById('level-stats').innerText = `БАЛАНС: $${Save.data.money}`;
+                document.getElementById('lvl-engine').innerText = `Lvl ${u.engine} -> ${u.engine+1}`;
+                document.getElementById('price-engine').innerText = '$'+(c.engine * u.engine);
+            },
+
+            nextLevel() {
+                State.level++;
+                State.save();
+                document.getElementById('screen-shop').classList.remove('visible');
+                this.start();
             }
         };
 
-        // --- INPUT HANDLER ---
+        // === INPUT ===
         const Input = { l:0, r:0, u:0, d:0, shoot:0, refill:0 };
-        const bindBtn = (id, key) => {
+        const bind = (id, k) => {
             const el = document.getElementById(id);
-            const on = (e) => { e.preventDefault(); Input[key] = 1; el.classList.add('pressed'); };
-            const off = (e) => { e.preventDefault(); Input[key] = 0; el.classList.remove('pressed'); };
+            const on = (e) => { e.preventDefault(); Input[k]=1; if(navigator.vibrate) navigator.vibrate(5); el.style.transform = 'scale(0.9)'; };
+            const off = (e) => { e.preventDefault(); Input[k]=0; el.style.transform = 'scale(1)'; };
             el.addEventListener('touchstart', on, {passive:false});
             el.addEventListener('touchend', off);
             el.addEventListener('mousedown', on);
             el.addEventListener('mouseup', off);
         };
-        bindBtn('btn-l', 'l'); bindBtn('btn-r', 'r');
-        bindBtn('btn-u', 'u'); bindBtn('btn-d', 'd');
-        bindBtn('btn-shoot', 'shoot'); bindBtn('btn-refill', 'refill');
+        bind('btn-l','l'); bind('btn-r','r'); bind('btn-u','u'); bind('btn-d','d');
+        bind('btn-shoot','shoot'); bind('btn-refill','refill');
 
-        // UI Helper
         const UI = {
-            float(text, x, y, col) {
-                let el = document.createElement('div');
-                el.className = 'float-txt';
-                el.innerText = text;
-                el.style.left = x + 'px';
-                el.style.top = y + 'px';
-                el.style.color = col;
-                document.getElementById('float-layer').appendChild(el);
-                setTimeout(() => el.remove(), 800);
+            msg(txt, x, y, col='#fff') {
+                const d = document.createElement('div');
+                d.className = 'float-msg';
+                d.innerText = txt;
+                d.style.left = x + 'px';
+                d.style.top = y + 'px';
+                d.style.color = col;
+                document.getElementById('fx-layer').appendChild(d);
+                setTimeout(() => d.remove(), 800);
             }
         };
 
-        // --- MAIN LOOP ---
-        function loop() {
-            if(!Game.active) return;
-            requestAnimationFrame(loop);
+        // LOOP
+        function Loop() {
+            if(!Game.running) return;
+            requestAnimationFrame(Loop);
             Game.update();
             Game.draw();
         }
 
-        // Init Telegram
         if(window.Telegram && window.Telegram.WebApp) {
             window.Telegram.WebApp.ready();
             window.Telegram.WebApp.expand();
         }
-
     </script>
 </body>
 </html>
