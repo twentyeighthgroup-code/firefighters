@@ -3,255 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>INFERNO: CHAOS EDITION</title>
+    <title>EMBER SQUAD: TACTICAL</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Khand:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap');
 
         :root {
-            --bg: #020203;
-            --ui: rgba(10, 15, 20, 0.9);
-            --accent: #ff2a2a;
+            --bg: #0a0a0a;
+            --ui-panel: rgba(20, 25, 30, 0.95);
+            --accent: #ff5500;
             --warn: #ffcc00;
-            --hud: #00f2ff;
+            --safe: #00ffcc;
         }
 
         body {
             margin: 0; background: var(--bg); overflow: hidden;
-            font-family: 'Chakra Petch', sans-serif;
-            user-select: none; -webkit-user-select: none; touch-action: none;
+            font-family: 'Khand', sans-serif;
+            touch-action: none; user-select: none; -webkit-user-select: none;
+            color: white;
         }
 
         canvas { display: block; width: 100%; height: 100%; }
 
-        /* SCANLINES & VIGNETTE */
+        /* VIGNETTE & ATMOSPHERE */
         .overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
-            background-size: 100% 4px;
-            box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 40%, #000 120%);
+            pointer-events: none; z-index: 2;
+        }
+        .scanlines {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 1px, transparent 1px, transparent 2px);
+            pointer-events: none; z-index: 3; opacity: 0.5;
         }
 
-        /* UI LAYER */
+        /* UI */
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; justify-content: space-between;
-            z-index: 10; pointer-events: none;
+            z-index: 10; pointer-events: none; display: flex; flex-direction: column;
+            justify-content: space-between;
         }
 
         /* TOP HUD */
-        .hud-top {
-            display: flex; justify-content: space-between; padding: max(10px, env(safe-area-inset-top)) 15px 0 15px;
+        .hud {
+            display: flex; justify-content: space-between; padding: 15px;
+            font-family: 'Roboto Mono', monospace;
         }
-
-        .widget {
-            background: var(--ui); border: 1px solid rgba(255,255,255,0.15);
-            padding: 5px 10px; transform: skewX(-15deg);
-            border-left: 4px solid var(--hud);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        }
-        .widget-in { transform: skewX(15deg); text-align: center; }
         
-        .val { font-size: 18px; font-weight: 700; color: #fff; text-shadow: 0 0 5px var(--hud); }
-        .lbl { font-size: 9px; color: #888; letter-spacing: 1px; }
-
-        /* BARS */
-        .bar-box { width: 80px; height: 6px; background: #222; margin-top: 4px; border: 1px solid #444; }
-        .bar-f { height: 100%; width: 100%; transition: width 0.1s; }
-        .f-wat { background: var(--hud); box-shadow: 0 0 8px var(--hud); }
-        .f-ult { background: linear-gradient(90deg, #ff00aa, #aa00ff); }
-
-        /* NOTIFICATIONS */
-        .ticker {
-            position: absolute; top: 80px; width: 100%; text-align: center;
-            font-size: 20px; font-weight: 900; color: var(--warn);
-            text-shadow: 0 2px 0 #000; opacity: 0; transition: 0.3s;
-            transform: scale(0.8); pointer-events: none;
+        .status-box {
+            background: var(--ui-panel); border: 1px solid #444;
+            padding: 10px; border-radius: 4px; min-width: 80px;
+            border-left: 3px solid var(--accent);
         }
-        .ticker.active { opacity: 1; transform: scale(1); animation: pulse 0.5s infinite alternate; }
-        @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
+
+        .stat-label { font-size: 10px; color: #888; }
+        .stat-val { font-size: 18px; font-weight: bold; }
+
+        .bar-bg { width: 100%; height: 6px; background: #333; margin-top: 4px; }
+        .bar-fill { height: 100%; transition: width 0.2s; }
 
         /* CONTROLS */
-        .ctrl-zone {
-            padding: 20px; padding-bottom: max(20px, env(safe-area-inset-bottom));
-            pointer-events: auto; display: flex; justify-content: space-between; align-items: flex-end;
+        .controls {
+            padding: 20px; padding-bottom: 40px; pointer-events: auto;
+            display: flex; justify-content: space-between; align-items: flex-end;
         }
 
-        .stick { position: relative; width: 140px; height: 140px; }
+        .joystick-area {
+            width: 140px; height: 140px; position: relative;
+            background: rgba(255,255,255,0.05); border-radius: 50%;
+            border: 1px dashed rgba(255,255,255,0.2);
+        }
+
+        .knob {
+            width: 50px; height: 50px; background: rgba(255,255,255,0.2);
+            border-radius: 50%; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); box-shadow: 0 0 10px #000;
+            pointer-events: none;
+        }
+
+        .actions {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
 
         .btn {
-            position: absolute; background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.2);
-            backdrop-filter: blur(5px); border-radius: 8px;
-            display: flex; justify-content: center; align-items: center;
-            color: #fff; font-size: 24px; transition: 0.1s;
+            width: 60px; height: 60px; border-radius: 12px;
+            background: rgba(20,20,20,0.8); border: 1px solid #444;
+            color: #fff; font-size: 24px; display: flex; justify-content: center; align-items: center;
+            transition: 0.1s; backdrop-filter: blur(4px);
         }
-        .btn:active { background: rgba(0, 242, 255, 0.2); border-color: var(--hud); }
+        .btn:active, .btn.active { background: var(--accent); border-color: #fff; transform: scale(0.95); }
+        .btn-tool.active { background: var(--safe); color: #000; }
 
-        .b-l { left: 0; top: 50px; width: 60px; height: 60px; }
-        .b-r { right: 0; top: 50px; width: 60px; height: 60px; }
-        .b-refill { bottom: 0; left: 35px; width: 70px; height: 30px; font-size: 10px; border-color: var(--accent); color: var(--accent); }
-
-        .b-u { left: 40px; top: 0; width: 60px; height: 50px; }
-        .b-d { left: 40px; bottom: 0; width: 60px; height: 50px; }
-        .b-shoot { 
-            right: 0; top: 30px; width: 80px; height: 80px; border-radius: 50%;
-            border: 2px solid var(--accent); background: rgba(255, 42, 42, 0.1);
-            box-shadow: 0 0 20px rgba(255,0,0,0.3);
-        }
-        .b-shoot:active { background: rgba(255,0,0,0.5); transform: scale(0.95); }
-
-        /* ULT BTN */
-        .ult-btn {
+        /* TOOL SELECTOR */
+        .tools {
             position: absolute; bottom: 160px; right: 20px; pointer-events: auto;
-            width: 60px; height: 60px; border-radius: 50%; border: 2px solid #f0a;
-            background: #000; color: #f0a; display: flex; justify-content: center; align-items: center;
-            font-size: 10px; font-weight: bold; opacity: 0.3; transition: 0.3s;
+            display: flex; flex-direction: column; gap: 10px;
         }
-        .ult-btn.ready { opacity: 1; box-shadow: 0 0 15px #f0a; animation: shake 2s infinite; cursor: pointer; }
-        @keyframes shake { 0%,100%{transform:translate(0);} 5%{transform:translate(2px,0);} 10%{transform:translate(-2px,0);} }
+        .tool-icon {
+            width: 50px; height: 50px; background: #111; border: 1px solid #333;
+            display: flex; justify-content: center; align-items: center; font-size: 20px;
+            cursor: pointer; opacity: 0.5; transition: 0.2s;
+        }
+        .tool-icon.selected { opacity: 1; border-color: var(--safe); background: rgba(0, 255, 204, 0.1); box-shadow: 0 0 10px var(--safe); }
 
-        /* MENUS */
+        /* INTERACTION PROMPT */
+        #prompt {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -80px);
+            background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 4px;
+            border: 1px solid #fff; font-size: 12px; display: none; text-transform: uppercase;
+        }
+
+        /* MENU */
         .modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
-            display: flex; justify-content: center; align-items: center;
-            opacity: 0; pointer-events: none; transition: 0.3s; z-index: 100;
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: #000; z-index: 100; display: flex; align-items: center; justify-content: center;
+            transition: 0.5s;
         }
-        .modal.active { opacity: 1; pointer-events: auto; }
-
-        .panel {
-            width: 90%; max-width: 400px; background: #0a0b10;
-            border: 1px solid #333; padding: 20px;
-            box-shadow: 0 0 50px rgba(0, 242, 255, 0.1);
-            position: relative; overflow: hidden;
-        }
-        .panel::before { content:''; position: absolute; top:0; left:0; width:100%; height:4px; background: var(--hud); }
-
-        h1 { margin: 0; font-size: 24px; color: #fff; text-transform: uppercase; }
-        .sub { color: #666; font-size: 12px; margin-bottom: 20px; }
-
-        /* TRUCK SELECTOR */
-        .garage { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 20px; }
-        .truck-card {
-            min-width: 100px; background: #15151a; border: 1px solid #333;
-            padding: 10px; cursor: pointer; transition: 0.2s; opacity: 0.6;
-        }
-        .truck-card.selected { border-color: var(--hud); opacity: 1; background: rgba(0, 242, 255, 0.1); }
-        .t-name { color: #fff; font-weight: bold; font-size: 12px; }
-        .t-stat { font-size: 10px; color: #888; margin-top: 4px; }
-
-        .btn-main {
-            width: 100%; padding: 15px; background: var(--hud); border: none;
-            color: #000; font-weight: 900; font-size: 16px; cursor: pointer;
-            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-        }
-        .btn-main:active { filter: brightness(0.8); }
-
-        /* FX TEXT */
-        .float { position: absolute; font-weight: 900; font-size: 20px; animation: floatUp 1s forwards; pointer-events: none; text-shadow: 1px 1px 0 #000; }
-        @keyframes floatUp { to { transform: translateY(-50px); opacity: 0; } }
+        .modal.hidden { opacity: 0; pointer-events: none; }
         
-        .flash { position: fixed; top:0; left:0; width:100%; height:100%; background:#fff; pointer-events:none; opacity:0; transition:0.1s; z-index: 20;}
+        .briefing {
+            width: 90%; max-width: 500px; background: #111; border: 1px solid #333; padding: 30px;
+            box-shadow: 0 0 50px rgba(255, 85, 0, 0.2);
+        }
+        h1 { margin: 0; color: var(--accent); font-size: 32px; line-height: 0.9; }
+        .mission-data { margin: 20px 0; font-family: 'Roboto Mono'; font-size: 12px; color: #888; border-top: 1px solid #333; padding-top: 10px; }
+        
+        .deploy-btn {
+            width: 100%; padding: 15px; background: var(--accent); color: white; border: none;
+            font-family: 'Khand'; font-size: 20px; font-weight: bold; cursor: pointer; letter-spacing: 2px;
+        }
 
+        /* FX */
+        .breathing { animation: breath 4s infinite ease-in-out; }
+        @keyframes breath { 0%{opacity:0.3} 50%{opacity:0.6} 100%{opacity:0.3} }
     </style>
 </head>
 <body>
 
     <div class="overlay"></div>
-    <div id="flash" class="flash"></div>
-    <canvas id="cvs"></canvas>
+    <div class="scanlines"></div>
+    <div class="overlay breathing" id="smoke-overlay" style="background: #fff; mix-blend-mode: overlay; opacity: 0; pointer-events: none;"></div>
+
+    <canvas id="game"></canvas>
 
     <div id="ui-layer">
-        <div class="hud-top">
-            <div class="widget">
-                <div class="widget-in">
-                    <div class="lbl">WATER</div>
-                    <div class="bar-box"><div class="bar-f f-wat" id="ui-wat"></div></div>
-                </div>
+        <div class="hud">
+            <div class="status-box">
+                <div class="stat-label">OXYGEN</div>
+                <div class="bar-bg"><div class="bar-fill" id="ui-ox" style="width:100%; background: #00ccff;"></div></div>
             </div>
-            <div class="widget">
-                <div class="widget-in">
-                    <div class="lbl">CAPITAL</div>
-                    <div class="val" id="ui-cash">$0</div>
-                </div>
+            <div class="status-box" style="border-color: var(--warn);">
+                <div class="stat-label">TEMP</div>
+                <div class="stat-val" id="ui-temp">24°C</div>
             </div>
-            <div class="widget" style="border-left-color: var(--accent);">
-                <div class="widget-in">
-                    <div class="lbl">DANGER</div>
-                    <div class="bar-box"><div class="bar-f" style="background:var(--accent)" id="ui-heat"></div></div>
-                </div>
+            <div class="status-box" style="border-color: #0f0;">
+                <div class="stat-label">SQUAD</div>
+                <div class="stat-val" id="ui-obj">0/3</div>
             </div>
         </div>
 
-        <div id="ticker" class="ticker">⚠️ DRONE SQUADRON DETECTED ⚠️</div>
-        <div id="fx-box"></div>
+        <div id="prompt">PRESS [ACTION]</div>
 
-        <div class="ult-btn" id="btn-ult" onclick="Game.ult()">
-            HYDRO<br>NUKE
-            <div style="position:absolute; bottom:-10px; width:100%; height:4px; background:#333;">
-                <div class="bar-f f-ult" id="ui-ult-bar" style="width:0%"></div>
-            </div>
+        <div class="tools">
+            <div class="tool-icon selected" id="t-hose" onclick="Player.setTool('hose')">💧</div>
+            <div class="tool-icon" id="t-axe" onclick="Player.setTool('axe')">🪓</div>
+            <div class="tool-icon" id="t-scanner" onclick="Player.setTool('scanner')">🌡️</div>
         </div>
 
-        <div class="ctrl-zone">
-            <div class="stick">
-                <div id="b-l" class="btn b-l">←</div>
-                <div id="b-r" class="btn b-r">→</div>
-                <div id="b-refill" class="btn b-refill">REFILL</div>
+        <div class="controls">
+            <div class="joystick-area" id="stick-move">
+                <div class="knob" id="knob-move"></div>
             </div>
-            <div class="stick">
-                <div id="b-u" class="btn b-u">↑</div>
-                <div id="b-d" class="btn b-d">↓</div>
-                <div id="b-shoot" class="btn b-shoot"></div>
+            <div class="actions">
+                <div class="btn" id="btn-act" ontouchstart="Player.action()" onmousedown="Player.action()">🖐️</div>
+                <div class="btn" id="btn-use" style="background: var(--accent);" ontouchstart="Player.useTool(true)" ontouchend="Player.useTool(false)" onmousedown="Player.useTool(true)" onmouseup="Player.useTool(false)">⚡</div>
             </div>
         </div>
     </div>
 
-    <!-- GARAGE MENU -->
-    <div id="menu" class="modal active">
-        <div class="panel">
-            <h1>GARAGE</h1>
-            <div class="sub">SELECT YOUR VEHICLE</div>
-            
-            <div class="garage">
-                <div class="truck-card selected" onclick="Game.selectTruck(0, this)">
-                    <div class="t-name">VANGUARD</div>
-                    <div class="t-stat">SPD: ●●○<br>TNK: ●●○<br>PWR: ●●○</div>
-                </div>
-                <div class="truck-card" onclick="Game.selectTruck(1, this)">
-                    <div class="t-name">GOLIATH</div>
-                    <div class="t-stat">SPD: ●○○<br>TNK: ●●●<br>PWR: ●●●</div>
-                </div>
-                <div class="truck-card" onclick="Game.selectTruck(2, this)">
-                    <div class="t-name">STINGER</div>
-                    <div class="t-stat">SPD: ●●●<br>TNK: ●○○<br>PWR: ●○○</div>
-                </div>
+    <div id="menu" class="modal">
+        <div class="briefing">
+            <h1>EMBER SQUAD</h1>
+            <div style="color:#fff; font-size: 14px;">TACTICAL RESPONSE UNIT</div>
+            <div class="mission-data">
+                MISSION: RESIDENTIAL FIRE<br>
+                OBJECTIVE: RESCUE 3 CIVILIANS<br>
+                HAZARDS: BACKDRAFT, TOXIC SMOKE<br>
+                GEAR: HOSE, HALLIGAN BAR, THERMAL CAM
             </div>
-
-            <div class="sub" style="border:1px solid #333; padding:10px;">
-                WARNING: Hostile drones detected in the sector. Use water cannon to neutralize them.
-            </div>
-
-            <button class="btn-main" onclick="Game.start()">DEPLOY</button>
-        </div>
-    </div>
-
-    <!-- SHOP -->
-    <div id="shop" class="modal">
-        <div class="panel">
-            <h1 style="color: #0f0;">MISSION ACCOMPLISHED</h1>
-            <p id="shop-stats">...</p>
-            <div id="upgrades"></div>
-            <button class="btn-main" onclick="Game.next()">NEXT SECTOR</button>
+            <button class="deploy-btn" onclick="Game.init()">BREACH & CLEAR</button>
         </div>
     </div>
 
     <script>
-        // === ENGINE ===
-        const cvs = document.getElementById('cvs');
-        const ctx = cvs.getContext('2d', { alpha: false, desynchronized: true });
-        
+        // === ENGINE & MATH ===
+        const cvs = document.getElementById('game');
+        const ctx = cvs.getContext('2d', { alpha: false });
+
         let W, H, DPR;
         const resize = () => {
             W = window.innerWidth; H = window.innerHeight;
@@ -262,522 +210,456 @@
         window.addEventListener('resize', resize);
         resize();
 
-        const rnd = (min, max) => Math.random() * (max - min) + min;
-        const vibrate = (ms) => { if(navigator.vibrate) navigator.vibrate(ms); };
+        // Input State
+        const Input = {
+            move: { x: 0, y: 0, active: false },
+            aim: { x: 0, y: 0 },
+            toolActive: false
+        };
 
-        // === ASSETS (DATA) ===
-        const TRUCKS = [
-            { name: 'VANGUARD', color: '#e22', speed: 4, tank: 100, power: 12, reload: 1 },
-            { name: 'GOLIATH', color: '#444', speed: 2, tank: 200, power: 18, reload: 1.5 },
-            { name: 'STINGER', color: '#ffcc00', speed: 7, tank: 60, power: 8, reload: 0.5 } // Fast fire
-        ];
+        // Helper Math
+        const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+        const vecToAngle = (x, y) => Math.atan2(y, x);
 
-        // === OBJECT POOL ===
-        // [x, y, vx, vy, type, life, size, r, g, b]
-        const MAX_P = 3000;
-        const P = new Float32Array(MAX_P * 10);
-        let pIdx = 0;
+        // === MAP GENERATION (Procedural House) ===
+        const TILE_SIZE = 40;
+        const MAP_W = 30;
+        const MAP_H = 30;
+        // 0: Floor, 1: Wall, 2: Door Closed, 3: Door Open, 4: Window, 5: Furniture
+        let MapGrid = []; 
+        let FireGrid = []; // Heat 0-100
+        let SmokeGrid = []; // Density 0-100
 
-        function spawn(x, y, type, vx, vy, size, col) {
-            let i = pIdx * 10;
-            P[i] = x; P[i+1] = y; P[i+2] = vx; P[i+3] = vy;
-            P[i+4] = type; // 0:Wat, 1:Fire, 2:Smoke, 3:Spark, 4:Exp, 5:Debris
-            P[i+5] = 1.0; // Life
-            P[i+6] = size;
-            // Color logic
-            if(type===1) { P[i+7]=255; P[i+8]=rnd(50,150); P[i+9]=0; } // Fire
-            else if(type===0) { P[i+7]=0; P[i+8]=240; P[i+9]=255; } // Water
-            else if(type===4) { P[i+7]=255; P[i+8]=255; P[i+9]=255; } // Explosion
-            else { P[i+7]=col?col[0]:200; P[i+8]=col?col[1]:200; P[i+9]=col?col[2]:200; }
+        function createMap() {
+            MapGrid = new Array(MAP_W * MAP_H).fill(0);
+            FireGrid = new Float32Array(MAP_W * MAP_H).fill(0);
+            SmokeGrid = new Float32Array(MAP_W * MAP_H).fill(0);
 
-            pIdx = (pIdx + 1) % MAX_P;
+            // Draw Outer Walls
+            for(let x=0; x<MAP_W; x++) {
+                for(let y=0; y<MAP_H; y++) {
+                    if(x===0 || x===MAP_W-1 || y===0 || y===MAP_H-1) MapGrid[y*MAP_W+x] = 1;
+                }
+            }
+
+            // Generate Rooms (BSP-ish simple split)
+            for(let i=0; i<200; i++) {
+                let x = Math.floor(Math.random()*(MAP_W-2))+1;
+                let y = Math.floor(Math.random()*(MAP_H-2))+1;
+                MapGrid[y*MAP_W+x] = 1; // Interior Walls
+            }
+
+            // Clean up isolation and make corridors (Cellular Automata smoothing)
+            // Just simple for demo: Clear center
+            for(let x=5; x<MAP_W-5; x++) {
+                for(let y=5; y<MAP_H-5; y++) {
+                    MapGrid[y*MAP_W+x] = 0;
+                }
+            }
+            // Add Rooms manually-ish
+            addWallRect(5,5, 10,10); // Room 1
+            addDoor(10, 10);
+            addWallRect(15,5, 25,15); // Room 2
+            addDoor(20, 15);
+            addWallRect(5,20, 15,25); // Room 3
+            addDoor(10, 20);
+            
+            // Add Fire Sources
+            FireGrid[7*MAP_W+7] = 100; // Fire in Room 1
+            FireGrid[20*MAP_W+20] = 80; // Fire in Room 2
         }
+
+        function addWallRect(x1,y1, x2,y2) {
+            for(let y=y1; y<=y2; y++) {
+                MapGrid[y*MAP_W+x1] = 1;
+                MapGrid[y*MAP_W+x2] = 1;
+            }
+            for(let x=x1; x<=x2; x++) {
+                MapGrid[y1*MAP_W+x] = 1;
+                MapGrid[y2*MAP_W+x] = 1;
+            }
+        }
+        function addDoor(x,y) { MapGrid[y*MAP_W+x] = 2; } // 2 = Door Closed
 
         // === ENTITIES ===
-        const Cam = { x: 0, shake: 0 };
-
-        class Drone {
-            constructor(x) {
-                this.x = x; this.y = rnd(50, 150);
-                this.vx = rnd(1, 3) * (Math.random()>0.5?1:-1);
-                this.hp = 20;
-                this.timer = rnd(100, 300);
-            }
+        const Player = {
+            x: 2 * TILE_SIZE, y: 15 * TILE_SIZE,
+            angle: 0,
+            tool: 'hose', // hose, axe, scanner
+            oxygen: 100,
+            victimsSaved: 0,
+            
             update() {
-                this.x += this.vx;
-                if(this.x < 0 || this.x > Game.wWidth) this.vx *= -1;
-                this.y += Math.sin(Date.now()/500)*0.5;
-
-                // Drop Bomb
-                this.timer--;
-                if(this.timer <= 0) {
-                    this.timer = rnd(200, 500);
-                    Game.bombs.push({ x: this.x, y: this.y, vx: 0, vy: 0 });
-                }
-            }
-            draw(ctx, cx) {
-                let dx = this.x - cx;
-                ctx.fillStyle = '#111';
-                ctx.fillRect(dx-10, this.y-5, 20, 10);
-                // Rotors
-                ctx.fillStyle = '#444';
-                let off = Math.sin(Date.now())*5;
-                ctx.fillRect(dx-15, this.y-8+off, 10, 2);
-                ctx.fillRect(dx+5, this.y-8-off, 10, 2);
-                // Eye
-                ctx.fillStyle = '#f00';
-                ctx.fillRect(dx-2, this.y, 4, 4);
-            }
-        }
-
-        class Building {
-            constructor(x, w, h) {
-                this.x = x; this.w = w; this.h = h;
-                this.hp = 100; this.dead = false;
-                this.windows = [];
-                this.barrels = []; // TNT
-
-                let rows = Math.floor(h/50);
-                let cols = Math.floor(w/40);
-                
-                for(let r=0; r<rows; r++) {
-                    for(let c=0; c<cols; c++) {
-                        this.windows.push({
-                            rx: 5+c*40, ry: 10+r*50, w: 30, h: 35,
-                            fire: 0, max: 100, person: Math.random()<0.15, saved: false
-                        });
-                    }
-                }
-
-                // Add TNT
-                if(Math.random() < 0.5) {
-                    let r = Math.floor(Math.random() * rows);
-                    let c = Math.floor(Math.random() * cols);
-                    this.barrels.push({ rx: 10+c*40+10, ry: 10+r*50+30, hp: 10 });
-                }
-            }
-
-            draw(ctx, cx, ground) {
-                let bx = this.x - cx;
-                if(bx < -200 || bx > W) return;
-
-                // Structure
-                ctx.fillStyle = this.dead ? '#111' : '#0a0a0c';
-                let dh = this.dead ? this.h * 0.3 : this.h;
-                ctx.fillRect(bx, ground-dh, this.w, dh);
-                
-                if(this.dead) {
-                    // Draw rubble smoke
-                    if(Math.random()<0.2) spawn(this.x+rnd(0,this.w), ground, 2, rnd(-1,1), -2, 20);
-                    return;
-                }
-
-                // Windows
-                this.windows.forEach(w => {
-                    let wx = bx + w.rx;
-                    let wy = ground - this.h + w.ry;
+                // Movement
+                if(Input.move.active) {
+                    let speed = 3;
+                    let nx = this.x + Input.move.x * speed;
+                    let ny = this.y + Input.move.y * speed;
                     
-                    if(w.fire > 0) {
-                        ctx.fillStyle = `rgba(255, ${200-w.fire*2}, 0, ${w.fire/100})`;
-                        ctx.fillRect(wx, wy, w.w, w.h);
-                        if(Math.random() < w.fire/500) spawn(this.x+w.rx+15, ground-this.h+w.ry+15, 1, rnd(-2,2), -3, rnd(10,20));
-                    } else {
-                        ctx.fillStyle = '#151518';
-                        ctx.fillRect(wx, wy, w.w, w.h);
-                    }
-
-                    // TNT
-                    this.barrels.forEach(b => {
-                         // Simple drawing for TNT barrel
-                         let tx = bx + b.rx;
-                         let ty = ground - this.h + b.ry;
-                         if(Math.abs(tx - wx) < 20 && Math.abs(ty - wy) < 20) { // Approx pos
-                             ctx.fillStyle = 'red';
-                             ctx.fillRect(bx + b.rx - 5, ground - this.h + b.ry - 10, 10, 15);
-                             ctx.fillStyle = 'yellow';
-                             ctx.font = '8px monospace';
-                             ctx.fillText('TNT', bx + b.rx - 8, ground - this.h + b.ry);
-                         }
-                    });
-
-                    if(w.person && !w.saved) {
-                        ctx.fillStyle = '#fff'; ctx.font='16px monospace';
-                        ctx.fillText('웃', wx+5, wy+25);
-                        if(w.fire>0) { ctx.fillStyle='#f00'; ctx.font='10px monospace'; ctx.fillText('SOS', wx, wy-2); }
-                    }
-                });
-            }
-        }
-
-        // === GAME LOGIC ===
-        const Game = {
-            mode: 'menu', // menu, play, shop
-            truckIdx: 0,
-            stats: { money: 0, level: 1, ups: {spd:0, tnk:0, pmp:0} },
-            truck: { x: 100, ang: -0.5, wat: 100, max: 100 },
-            buildings: [],
-            drones: [],
-            bombs: [],
-            ult: 0,
-            heat: 0,
-            wWidth: 3000,
-
-            selectTruck(i, el) {
-                this.truckIdx = i;
-                document.querySelectorAll('.truck-card').forEach(c => c.classList.remove('selected'));
-                el.classList.add('selected');
-            },
-
-            start() {
-                document.getElementById('menu').classList.remove('active');
-                this.mode = 'play';
-                this.loadLevel();
-                Loop();
-            },
-
-            loadLevel() {
-                this.buildings = []; this.drones = []; this.bombs = [];
-                this.heat = 0; this.ult = 0;
-                
-                // Apply Truck Stats
-                let proto = TRUCKS[this.truckIdx];
-                this.truck.max = proto.tank + (this.stats.ups.tnk * 50);
-                this.truck.wat = this.truck.max;
-                this.truck.x = 100;
-
-                // Gen City
-                let bx = 200;
-                for(let i=0; i<3+this.stats.level; i++) {
-                    let w = rnd(120, 200);
-                    this.buildings.push(new Building(bx, w, rnd(200, 400)));
-                    bx += w + rnd(50, 100);
+                    // Collision
+                    if(!isSolid(nx, this.y)) this.x = nx;
+                    if(!isSolid(this.x, ny)) this.y = ny;
+                    
+                    this.angle = vecToAngle(Input.move.x, Input.move.y);
                 }
-                this.wWidth = bx + 500;
 
-                // Initial Fires
-                this.buildings.forEach(b => {
-                    b.windows.forEach(w => { if(Math.random()<0.3) w.fire=40; });
-                });
+                // Tool Usage
+                if(Input.toolActive) {
+                    if(this.tool === 'hose') {
+                        // Shoot Water
+                        spawnParticle(this.x, this.y, Math.cos(this.angle)*8, Math.sin(this.angle)*8, 'water');
+                    } else if (this.tool === 'axe') {
+                        // Swing logic handled in "Action" but continuous swinging also possible
+                    }
+                }
 
-                // Spawn Drones (Level 2+)
-                if(this.stats.level >= 2) {
-                    for(let i=0; i<this.stats.level-1; i++) this.drones.push(new Drone(rnd(300, this.wWidth-300)));
-                    document.getElementById('ticker').classList.add('active');
+                // Oxygen
+                let tileIdx = getTileIdx(this.x, this.y);
+                let smoke = SmokeGrid[tileIdx];
+                let heat = FireGrid[tileIdx];
+                
+                // Damage/Consume
+                if(smoke > 50) this.oxygen -= 0.05;
+                if(heat > 50) this.oxygen -= 0.2; // Heat damage basically
+                
+                // UI Updates
+                document.getElementById('ui-ox').style.width = this.oxygen + '%';
+                document.getElementById('ui-ox').style.background = this.oxygen < 30 ? 'red' : '#00ccff';
+                
+                // Scan Temp
+                let lookX = this.x + Math.cos(this.angle)*40;
+                let lookY = this.y + Math.sin(this.angle)*40;
+                let lookIdx = getTileIdx(lookX, lookY);
+                let temp = Math.floor(20 + FireGrid[lookIdx]*5);
+                
+                if(this.tool === 'scanner') {
+                    // Scanner shows heat through doors
+                    document.getElementById('ui-temp').style.color = temp > 200 ? 'red' : 'white';
+                    document.getElementById('ui-temp').innerText = temp + "°C";
                 } else {
-                    document.getElementById('ticker').classList.remove('active');
+                    document.getElementById('ui-temp').innerText = "---";
+                }
+
+                // Prompt Check
+                let t = MapGrid[lookIdx];
+                let prompt = document.getElementById('prompt');
+                if(t === 2) { // Door
+                    prompt.style.display = 'block';
+                    prompt.innerText = this.tool === 'axe' ? "AXE DOOR" : "OPEN DOOR";
+                    prompt.style.color = (FireGrid[lookIdx] > 50) ? 'red' : 'white'; // Danger warning
+                } else if (Victims.some(v => dist(this, v) < 40 && !v.saved)) {
+                    prompt.style.display = 'block';
+                    prompt.innerText = "CARRY VICTIM";
+                    prompt.style.color = "#0f0";
+                } else {
+                    prompt.style.display = 'none';
                 }
             },
 
-            update() {
-                let proto = TRUCKS[this.truckIdx];
-                let spd = proto.speed + this.stats.ups.spd;
+            setTool(t) {
+                this.tool = t;
+                document.querySelectorAll('.tool-icon').forEach(e => e.classList.remove('selected'));
+                document.getElementById('t-'+t).classList.add('selected');
+            },
+            
+            useTool(state) {
+                Input.toolActive = state;
+            },
+
+            action() {
+                let lookX = this.x + Math.cos(this.angle)*40;
+                let lookY = this.y + Math.sin(this.angle)*40;
+                let idx = getTileIdx(lookX, lookY);
                 
-                // Controls
-                if(In.l && this.truck.x > 50) this.truck.x -= spd;
-                if(In.r && this.truck.x < this.wWidth - 50) this.truck.x += spd;
-                if(In.u && this.truck.ang > -2) this.truck.ang -= 0.05;
-                if(In.d && this.truck.ang < 0) this.truck.ang += 0.05;
-
-                // Cam
-                let tx = this.truck.x - W/2;
-                if(Cam.shake > 0) { tx += rnd(-Cam.shake, Cam.shake); Cam.shake *= 0.9; }
-                Cam.x += (tx - Cam.x) * 0.1;
-
-                // Actions
-                if(In.fil && this.truck.x < 200) this.truck.wat = Math.min(this.truck.max, this.truck.wat + 2);
-                if(In.sht && this.truck.wat > 0) {
-                    this.truck.wat -= proto.reload; // Consumption
-                    let pow = proto.power + (this.stats.ups.pmp * 2);
-                    // Muzzle pos
-                    let mx = this.truck.x + 80; let my = H-60 - 40;
-                    spawn(mx, my, 0, Math.cos(this.truck.ang)*pow, Math.sin(this.truck.ang)*pow, 5);
-                    if(Math.random() > 0.7) vibrate(5);
-                }
-
-                // Entities
-                this.drones.forEach(d => d.update());
-                
-                // Bombs
-                for(let i=this.bombs.length-1; i>=0; i--) {
-                    let b = this.bombs[i];
-                    b.y += 3; // Gravity
-                    if(b.y > H-60) { // Hit ground
-                        // Explosion
-                        this.explode(b.x, b.y, 30);
-                        this.bombs.splice(i, 1);
-                    }
-                }
-
-                // Particles & Physics
-                for(let i=0; i<MAX_P*10; i+=10) {
-                    if(P[i+5] <= 0) continue; // Dead
-                    
-                    P[i] += P[i+2]; P[i+1] += P[i+3]; // Move
-                    P[i+5] -= 0.01; // Life
-
-                    let type = P[i+4];
-                    // Water Physics
-                    if(type === 0) {
-                        P[i+3] += 0.25; // Grav
-                        if(P[i+1] > H-60) { P[i+5]=0; continue; } // Ground
-
-                        // Check Collisions
-                        // 1. Drones
-                        this.drones.forEach((d, idx) => {
-                            if(Math.abs(P[i] - d.x) < 20 && Math.abs(P[i+1] - d.y) < 10) {
-                                d.hp--; P[i+5] = 0;
-                                spawn(d.x, d.y, 3, rnd(-5,5), rnd(-5,5), 2); // Sparks
-                                if(d.hp <= 0) {
-                                    this.explode(d.x, d.y, 40);
-                                    this.drones.splice(idx, 1);
-                                    this.addCash(50, d.x, d.y);
-                                }
-                            }
-                        });
-
-                        // 2. Buildings
-                        this.buildings.forEach(b => {
-                            if(b.dead) return;
-                            if(P[i] > b.x && P[i] < b.x+b.w) {
-                                b.windows.forEach(w => {
-                                    let wx = b.x + w.rx; let wy = H-60 - b.h + w.ry;
-                                    if(Math.abs(P[i]-wx)<15 && Math.abs(P[i+1]-wy)<15) {
-                                        if(w.fire > 0) {
-                                            w.fire -= 2; P[i+5]=0;
-                                            spawn(P[i], P[i+1], 2, 0, -2, 15); // Steam
-                                            if(w.fire <= 0) {
-                                                this.addCash(10, wx, wy);
-                                                this.chargeUlt(2);
-                                                if(w.person && !w.saved) {
-                                                    w.saved = true;
-                                                    this.addCash(100, wx, wy);
-                                                }
-                                            }
-                                        }
-                                        // Check TNT
-                                        b.barrels.forEach((br, bIdx) => {
-                                            // TNT doesn't like water (no effect, or maybe cools it?)
-                                            // Ignored for now
-                                        });
-                                    }
-                                });
-                            }
-                        });
-                    }
-                    // Explosion expanding
-                    if(type === 4) {
-                        P[i+6] *= 1.05; // Grow
-                        P[i+5] -= 0.05; // Fast fade
-                    }
-                }
-
-                // Building Logic & Fire Spread
-                let activeFire = 0;
-                this.buildings.forEach(b => {
-                    if(b.dead) return;
-                    b.windows.forEach(w => {
-                        if(w.fire > 0) {
-                            activeFire++;
-                            w.fire += 0.05;
-                            if(w.fire >= 100) {
-                                w.fire = 100;
-                                // Check TNT ignition
-                                b.barrels.forEach((br, bIdx) => {
-                                    // If fire is close to barrel
-                                    let wx = w.rx, wy = w.ry;
-                                    let dist = Math.hypot(wx - br.rx, wy - br.ry);
-                                    if(dist < 40) {
-                                        br.hp--;
-                                        if(br.hp <= 0) {
-                                            this.explode(b.x + br.rx, H-60-b.h+br.ry, 100);
-                                            b.barrels.splice(bIdx, 1);
-                                            b.dead = true; // Collapse
-                                            Cam.shake = 30;
-                                        }
-                                    }
-                                });
-                            }
+                // Door Interaction
+                if(MapGrid[idx] === 2) {
+                    if(this.tool === 'axe') {
+                        // Smash
+                        MapGrid[idx] = 0; // Destroyed
+                        spawnDebris(lookX, lookY);
+                        // Backdraft Check
+                        if(FireGrid[idx] > 80 && SmokeGrid[idx] > 80) createExplosion(lookX, lookY);
+                    } else {
+                        // Open
+                        // Backdraft Risk High!
+                        if(FireGrid[idx] > 60) {
+                            createExplosion(lookX, lookY);
+                        } else {
+                            MapGrid[idx] = 3; // Open
                         }
-                    });
-                });
-
-                this.heat = Math.min(1000, this.heat + activeFire * 0.1);
-
-                // Win Check
-                if(activeFire === 0 && this.drones.length === 0 && pIdx > 0) {
-                    setTimeout(() => this.win(), 1000);
+                    }
                 }
-            },
-
-            explode(x, y, rad) {
-                vibrate(200);
-                Cam.shake += 10;
-                // Visuals
-                spawn(x, y, 4, 0, 0, rad); // Boom circle
-                for(let k=0; k<20; k++) spawn(x, y, 1, rnd(-5,5), rnd(-5,5), rnd(10,30)); // Fire chunks
                 
-                // Physics Knockback on Truck
-                let dist = x - this.truck.x;
-                if(Math.abs(dist) < rad + 50) {
-                    this.truck.x -= (100 - Math.abs(dist)) * Math.sign(dist) * 0.5;
-                }
-
-                // Set fire to nearby
-                this.buildings.forEach(b => {
-                    if(x > b.x && x < b.x+b.w) {
-                         b.windows.forEach(w => {
-                             let wy = H-60 - b.h + w.ry;
-                             if(Math.abs(y - wy) < rad) w.fire = 100;
-                         });
+                // Victim Rescue
+                Victims.forEach(v => {
+                    if(dist(this, v) < 40 && !v.saved) {
+                        v.saved = true;
+                        this.victimsSaved++;
+                        document.getElementById('ui-obj').innerText = this.victimsSaved + "/3";
+                        spawnFloatingText("SAVED!", this.x, this.y, "#0f0");
                     }
                 });
-            },
-
-            ult() {
-                if(this.ult < 100) return;
-                this.ult = 0;
-                document.getElementById('btn-ult').classList.remove('ready');
-                
-                // Rain Nuke
-                document.getElementById('flash').style.opacity = 1;
-                setTimeout(() => document.getElementById('flash').style.opacity = 0, 100);
-                
-                for(let i=0; i<1000; i++) {
-                    spawn(rnd(Cam.x, Cam.x+W), 0, 0, 0, rnd(10,20), 5);
-                }
-                // Damage all
-                this.buildings.forEach(b => b.windows.forEach(w => w.fire = 0));
-                this.drones.forEach(d => { this.explode(d.x, d.y, 30); d.hp=0; });
-                this.drones = [];
-            },
-
-            addCash(amt, x, y) {
-                this.stats.money += amt;
-                UI.float(`+$${amt}`, x - Cam.x, y);
-            },
-
-            chargeUlt(amt) {
-                this.ult = Math.min(100, this.ult + amt);
-                document.getElementById('ui-ult-bar').style.width = this.ult + '%';
-                if(this.ult >= 100) document.getElementById('btn-ult').classList.add('ready');
-            },
-
-            draw() {
-                // Clear
-                ctx.fillStyle = '#111'; ctx.fillRect(0,0,W,H);
-                
-                // Heat Haze (Simple shake of background elements)
-                let shakeX = Math.random()* (this.heat/500);
-                
-                // Stars
-                ctx.fillStyle = '#fff';
-                for(let i=0;i<50;i++) ctx.fillRect((i*80 - Cam.x*0.2)%W, (i*97)%H, 1, 1);
-
-                // Ground
-                ctx.fillStyle = '#1a1a20';
-                ctx.fillRect(0, H-60, W, 60);
-
-                let groundY = H-60;
-                
-                // Hydrant
-                let hx = 100 - Cam.x;
-                if(hx > -50 && hx < W) { ctx.fillStyle='#f00'; ctx.fillRect(hx, groundY-20, 15, 20); }
-
-                this.buildings.forEach(b => b.draw(ctx, Cam.x + shakeX, groundY));
-                this.drones.forEach(d => d.draw(ctx, Cam.x));
-
-                // Truck
-                let tx = this.truck.x - Cam.x;
-                let proto = TRUCKS[this.truckIdx];
-                
-                ctx.fillStyle = proto.color;
-                ctx.fillRect(tx, groundY-40, 120, 30);
-                // Cannon
-                ctx.save(); ctx.translate(tx+80, groundY-40); ctx.rotate(this.truck.ang);
-                ctx.fillStyle='#888'; ctx.fillRect(0, -5, 40, 10); ctx.restore();
-                // Wheels
-                ctx.fillStyle='#000'; ctx.beginPath(); ctx.arc(tx+30, groundY-10, 12, 0, 7); ctx.fill();
-                ctx.beginPath(); ctx.arc(tx+90, groundY-10, 12, 0, 7); ctx.fill();
-
-                // Particles
-                for(let i=0; i<MAX_P*10; i+=10) {
-                    if(P[i+5] <= 0) continue;
-                    let px = P[i] - Cam.x;
-                    if(px < -50 || px > W+50) continue;
-
-                    let type = P[i+4];
-                    if(type === 1) ctx.globalCompositeOperation = 'lighter'; // Fire glow
-                    
-                    ctx.fillStyle = `rgba(${P[i+7]},${P[i+8]},${P[i+9]},${P[i+5]})`;
-                    ctx.beginPath(); ctx.arc(px, P[i+1], P[i+6], 0, 7); ctx.fill();
-                    
-                    ctx.globalCompositeOperation = 'source-over';
-                }
-
-                // Update UI
-                document.getElementById('ui-wat').style.width = (this.truck.wat / this.truck.max * 100) + '%';
-                document.getElementById('ui-heat').style.width = (this.heat / 1000 * 100) + '%';
-                document.getElementById('ui-cash').innerText = '$' + this.stats.money;
-            },
-
-            win() {
-                this.mode = 'shop';
-                document.getElementById('shop').classList.add('active');
-                this.renderShop();
-                this.stats.level++;
-            },
-            next() {
-                document.getElementById('shop').classList.remove('active');
-                this.start();
-            },
-            renderShop() {
-                let c = document.getElementById('upgrades');
-                c.innerHTML = '';
-                ['spd', 'tnk', 'pmp'].forEach(k => {
-                    let cost = 200 + (this.stats.ups[k] * 100);
-                    c.innerHTML += `
-                    <div style="display:flex; justify-content:space-between; padding:10px; background:#222; margin-bottom:5px; border:1px solid #444;" onclick="Game.buy('${k}', ${cost})">
-                        <div style="color:#fff">UPGRADE ${k.toUpperCase()}</div>
-                        <div style="color:${this.stats.money>=cost?'#0f0':'#f00'}">$${cost}</div>
-                    </div>`;
-                });
-            },
-            buy(k, cost) {
-                if(this.stats.money >= cost) {
-                    this.stats.money -= cost;
-                    this.stats.ups[k]++;
-                    this.renderShop();
-                }
             }
         };
 
-        // === INPUT ===
-        const In = { l:0, r:0, u:0, d:0, sht:0, fil:0 };
-        const bind = (id, k) => {
-            let el = document.getElementById(id);
-            let h = (s) => (e) => { e.preventDefault(); In[k] = s; if(s) el.style.opacity=0.5; else el.style.opacity=1; };
-            el.addEventListener('touchstart', h(1)); el.addEventListener('touchend', h(0));
-            el.addEventListener('mousedown', h(1)); el.addEventListener('mouseup', h(0));
-        };
-        bind('b-l','l'); bind('b-r','r'); bind('b-u','u'); bind('b-d','d');
-        bind('b-shoot','sht'); bind('b-refill','fil');
-
-        const UI = {
-            float(t, x, y, c='#fff') {
-                let d = document.createElement('div'); d.className='float';
-                d.innerText=t; d.style.left=x+'px'; d.style.top=y+'px'; d.style.color=c;
-                document.getElementById('fx-box').appendChild(d);
-                setTimeout(()=>d.remove(), 900);
-            }
-        };
-
-        function Loop() {
-            if(Game.mode === 'play') {
-                requestAnimationFrame(Loop);
-                Game.update();
-                Game.draw();
-            }
+        const Victims = [];
+        function spawnVictim() {
+            // Find random floor
+            let x, y;
+            do {
+                x = Math.floor(Math.random() * MAP_W);
+                y = Math.floor(Math.random() * MAP_H);
+            } while(MapGrid[y*MAP_W+x] !== 0);
+            Victims.push({ x: x*TILE_SIZE + 20, y: y*TILE_SIZE + 20, saved: false });
         }
+
+        const Particles = [];
+        function spawnParticle(x, y, vx, vy, type) {
+            Particles.push({ x, y, vx, vy, type, life: 1.0 });
+        }
+        function spawnDebris(x, y) {
+            for(let i=0; i<10; i++) spawnParticle(x, y, (Math.random()-0.5)*5, (Math.random()-0.5)*5, 'debris');
+        }
+        function createExplosion(x, y) {
+            // Push player
+            let dx = Player.x - x; let dy = Player.y - y;
+            let len = Math.hypot(dx, dy);
+            Player.x += (dx/len)*50; Player.y += (dy/len)*50;
+            Player.oxygen -= 10;
+            // Visuals
+            for(let i=0; i<50; i++) spawnParticle(x, y, (Math.random()-0.5)*10, (Math.random()-0.5)*10, 'fire');
+            // Flash
+            let s = document.getElementById('smoke-overlay');
+            s.style.background = 'orange'; s.style.opacity = 0.8;
+            setTimeout(()=> { s.style.background='#fff'; s.style.opacity=0; }, 100);
+            spawnFloatingText("BACKDRAFT!", x, y, "red");
+        }
+        function spawnFloatingText(txt, x, y, col) {
+            // simplified
+        }
+
+        // === SYSTEM FUNCTIONS ===
+        function getTileIdx(x, y) {
+            let tx = Math.floor(x / TILE_SIZE);
+            let ty = Math.floor(y / TILE_SIZE);
+            if(tx<0||tx>=MAP_W||ty<0||ty>=MAP_H) return -1;
+            return ty * MAP_W + tx;
+        }
+
+        function isSolid(x, y) {
+            let idx = getTileIdx(x, y);
+            if(idx === -1) return true;
+            let t = MapGrid[idx];
+            return t === 1 || t === 2; // Wall or Closed Door
+        }
+
+        // === RENDERER ===
+        function draw() {
+            // Camera Follow
+            let cx = W/2 - Player.x;
+            let cy = H/2 - Player.y;
+
+            // Clear
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, W, H);
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            // 1. Draw Floor & Smoke/Fire Simulation
+            for(let y=0; y<MAP_H; y++) {
+                for(let x=0; x<MAP_W; x++) {
+                    let idx = y*MAP_W+x;
+                    let px = x*TILE_SIZE;
+                    let py = y*TILE_SIZE;
+                    
+                    // Check Visibility (Raycast-ish distance check)
+                    let d = Math.hypot(Player.x - (px+20), Player.y - (py+20));
+                    let visible = d < 300; // Fog of war range
+
+                    if(visible) {
+                        // Floor
+                        ctx.fillStyle = '#1a1a1a';
+                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = '#222';
+                        ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+
+                        // Fire & Smoke Logic Update
+                        if(FireGrid[idx] > 0) {
+                            // Spread
+                            if(Math.random() < 0.01) {
+                                let nIdx = idx + (Math.random()>0.5?1:-1);
+                                if(MapGrid[nIdx]!==1) FireGrid[nIdx] = Math.min(100, FireGrid[nIdx]+10);
+                            }
+                            // Smoke Gen
+                            if(SmokeGrid[idx] < 100) SmokeGrid[idx] += 0.1;
+                            
+                            // Draw Fire
+                            let intensity = FireGrid[idx]/100;
+                            ctx.fillStyle = `rgba(255, ${100-intensity*100}, 0, ${intensity})`;
+                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                        }
+
+                        // Draw Smoke
+                        if(SmokeGrid[idx] > 0) {
+                            let dens = SmokeGrid[idx]/100;
+                            ctx.fillStyle = `rgba(50, 50, 50, ${dens*0.9})`;
+                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                        }
+                    } else {
+                        // Fog of war
+                        ctx.fillStyle = '#000';
+                        ctx.fillRect(px, py, TILE_SIZE+1, TILE_SIZE+1);
+                    }
+                }
+            }
+
+            // 2. Draw Walls (3D Extrusion Effect)
+            for(let y=0; y<MAP_H; y++) {
+                for(let x=0; x<MAP_W; x++) {
+                    let idx = y*MAP_W+x;
+                    let px = x*TILE_SIZE;
+                    let py = y*TILE_SIZE;
+                    let t = MapGrid[idx];
+                    
+                    // Determine visibility
+                    let d = Math.hypot(Player.x - (px+20), Player.y - (py+20));
+                    if(d > 350) continue;
+
+                    if(t === 1) { // Wall
+                        // Fake 3D: Draw top shifted up
+                        let h = 30;
+                        // Side
+                        ctx.fillStyle = '#111';
+                        ctx.fillRect(px, py-h, TILE_SIZE, TILE_SIZE+h);
+                        // Top
+                        ctx.fillStyle = '#333';
+                        ctx.fillRect(px, py-h, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = '#555';
+                        ctx.strokeRect(px, py-h, TILE_SIZE, TILE_SIZE);
+                    } else if (t === 2) { // Door Closed
+                        ctx.fillStyle = '#630';
+                        ctx.fillRect(px+2, py+2, TILE_SIZE-4, TILE_SIZE-4);
+                        // Heat glow on door
+                        if(FireGrid[idx] > 50 && Player.tool === 'scanner') {
+                            ctx.strokeStyle = 'red'; ctx.lineWidth = 3;
+                            ctx.strokeRect(px+5, py+5, TILE_SIZE-10, TILE_SIZE-10);
+                        }
+                    }
+                }
+            }
+
+            // 3. Victims
+            Victims.forEach(v => {
+                if(!v.saved) {
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath(); ctx.arc(v.x, v.y, 10, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#f00'; ctx.font='10px Arial'; ctx.fillText('HELP', v.x-10, v.y-15);
+                }
+            });
+
+            // 4. Particles
+            for(let i=Particles.length-1; i>=0; i--) {
+                let p = Particles[i];
+                p.x += p.vx; p.y += p.vy;
+                p.life -= 0.05;
+                
+                if(p.type === 'water') {
+                    ctx.fillStyle = '#00ffff';
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+                    // Extinguish
+                    let idx = getTileIdx(p.x, p.y);
+                    if(idx !== -1 && FireGrid[idx] > 0) {
+                        FireGrid[idx] -= 2;
+                        p.life = 0; // Die on hit
+                        spawnParticle(p.x, p.y, 0, -1, 'steam');
+                    }
+                } else if (p.type === 'steam') {
+                    ctx.fillStyle = `rgba(200,200,200,${p.life})`;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI*2); ctx.fill();
+                } else if (p.type === 'debris') {
+                    ctx.fillStyle = '#853';
+                    ctx.fillRect(p.x, p.y, 4, 4);
+                }
+
+                if(p.life <= 0) Particles.splice(i, 1);
+            }
+
+            // 5. Player (Tactical View)
+            ctx.save();
+            ctx.translate(Player.x, Player.y);
+            ctx.rotate(Player.angle);
+            
+            // Flashlight Cone
+            let grad = ctx.createRadialGradient(0, 0, 10, 0, 0, 200);
+            grad.addColorStop(0, 'rgba(255,255,255,0.3)');
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, 200, -0.5, 0.5); ctx.fill();
+
+            // Body
+            ctx.fillStyle = '#e6b800'; // Bunker gear color
+            ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI*2); ctx.fill();
+            // Helmet
+            ctx.fillStyle = '#d00';
+            ctx.fillRect(-5, -8, 10, 16);
+            // Arms/Tool
+            ctx.fillStyle = '#ccc';
+            if(Player.tool === 'hose') ctx.fillRect(5, 5, 15, 5);
+            if(Player.tool === 'axe') { ctx.fillStyle='#633'; ctx.fillRect(5, -15, 20, 5); ctx.fillStyle='#888'; ctx.fillRect(20, -20, 5, 15); }
+
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        const Game = {
+            init() {
+                createMap();
+                for(let i=0; i<3; i++) spawnVictim();
+                document.getElementById('menu').classList.add('hidden');
+                updateLoop();
+            }
+        };
+
+        function updateLoop() {
+            Player.update();
+            draw();
+            requestAnimationFrame(updateLoop);
+        }
+
+        // === JOYSTICK ===
+        const stick = document.getElementById('stick-move');
+        const knob = document.getElementById('knob-move');
+        let startX, startY;
+
+        stick.addEventListener('touchstart', e => {
+            e.preventDefault();
+            let t = e.touches[0];
+            startX = t.clientX; startY = t.clientY;
+            Input.move.active = true;
+        });
+        stick.addEventListener('touchmove', e => {
+            e.preventDefault();
+            let t = e.touches[0];
+            let dx = t.clientX - startX;
+            let dy = t.clientY - startY;
+            let dist = Math.min(35, Math.hypot(dx, dy));
+            let ang = Math.atan2(dy, dx);
+            
+            knob.style.transform = `translate(calc(-50% + ${Math.cos(ang)*dist}px), calc(-50% + ${Math.sin(ang)*dist}px))`;
+            
+            Input.move.x = Math.cos(ang);
+            Input.move.y = Math.sin(ang);
+        });
+        stick.addEventListener('touchend', e => {
+            Input.move.active = false;
+            Input.move.x = 0; Input.move.y = 0;
+            knob.style.transform = `translate(-50%, -50%)`;
+        });
+
+        // Init
+        if(window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.ready();
 
     </script>
 </body>
