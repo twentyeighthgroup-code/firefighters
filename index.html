@@ -1,314 +1,758 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Пожарный: Спасатель Города</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🔥 ПОЖАРНЫЙ: ЛЕГЕНДА 2.0 - УЛУЧШЕННАЯ ГРАФИКА</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Rubik+Burned&display=swap');
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{
-      background:#110011;
-      color:#fff;
-      font-family:Arial,sans-serif;
-      overflow:hidden;
-      height:100vh;
-      touch-action:manipulation;
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rubik+Burned&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      touch-action: manipulation;
     }
-    #game{background:url('https://i.ibb.co.com/0jZ1yKX/fire-bg.jpg') center/cover; position:relative; height:100%;}
-
-    #hud{
-      position:absolute; top:0; left:0; right:0; padding:12px;
-      background:rgba(0,0,0,0.7); display:flex; justify-content:space-between; z-index:100;
-      backdrop-filter:blur(8px);
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
     }
-    .stat{
-      background:rgba(255,50,50,0.9); padding:8px 16px; border-radius:50px; font-weight:bold;
-      box-shadow:0 0 15px #ff0000; min-width:110px; text-align:center;
+    #canvas {
+      display: block;
+      background: radial-gradient(circle at top, #1a0033, #000011);
+      cursor: pointer;
     }
-
-    /* Огонь */
-    .fire{
-      position:absolute; width:90px; height:130px; pointer-events:all; cursor:pointer;
-      background:radial-gradient(circle at bottom,#ff9800,#f44336,#b71c1c);
-      border-radius:50% 50% 50% 50%/60% 60% 40% 40%;
-      animation:flame 1.4s infinite alternate;
-      box-shadow:0 0 50px #ff3300;
+    #hud {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      z-index: 100;
+      pointer-events: none;
     }
-    @keyframes flame{0%{transform:scale(1) translateY(0);}100%{transform:scale(1.25) translateY(-25px);}}
-
-    /* Человек в окне */
-    .person{
-      position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
-      width:40px; height:60px; pointer-events:none;
-      background:url('https://i.ibb.co.com/8X8Y3fJ/person-scream.png') center/contain no-repeat;
-      animation:wave 1s infinite;
+    .hud-item {
+      background: rgba(255, 50, 50, 0.9);
+      padding: 12px 20px;
+      border-radius: 30px;
+      font-weight: 700;
+      box-shadow: 0 0 20px #ff0000;
+      backdrop-filter: blur(10px);
     }
-    @keyframes wave{0%,100%{transform:translateX(-50%) rotate(0);} 25%{transform:translateX(-50%) rotate(15deg);} 75%{transform:translateX(-50%) rotate(-15deg);}}
-
-    /* Машина */
-    #truck{
-      position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
-      width:200px; height:110px;
-      background:url('https://i.ibb.co.com/4pKXvG7/firetruck.png') center/contain no-repeat;
-      z-index:50;
+    #rank {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 28px;
+      color: gold;
+      text-shadow: 0 0 30px gold;
+      font-weight: 900;
     }
-
-    /* Попапы */
-    .popup{
-      position:absolute; font-size:36px; font-weight:bold; pointer-events:none;
-      animation:float 1.2s ease-out forwards;
+    #team {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      pointer-events: all;
+      z-index: 101;
     }
-    @keyframes float{0%{transform:translateY(0);opacity:1;}100%{transform:translateY(-180px);opacity:0;}}
-
-    #lives{display:flex; gap:8px;}
-    .heart{font-size:28px;}
-
-    /* Меню, магазин, достижения — без изменений (оставил как было) */
-    #menu,#shop,#achieves,#gameover{
-      position:absolute; top:0; left:0; right:0; bottom:0;
-      background:rgba(0,0,0,0.97); display:none; flex-direction:column;
-      align-items:center; justify-content:center; z-index:200;
+    .hero-btn {
+      width: 70px;
+      height: 90px;
+      border: 3px solid #ffaa00;
+      border-radius: 15px;
+      background: #333 url('data:image/svg+xml;base64,...') center/contain; /* Placeholder */
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 0 15px #ff6600;
     }
-    .btn{
-      margin:12px; padding:18px 45px; background:linear-gradient(#ff4444,#cc0000);
-      border:none; border-radius:50px; color:white; font-size:22px; font-weight:bold;
-      box-shadow:0 6px 25px rgba(255,0,0,0.6); cursor:pointer;
+    .hero-btn.active {
+      border-color: lime;
+      box-shadow: 0 0 30px lime;
+      transform: scale(1.1);
     }
-    .btn:active{transform:scale(0.94);}
-    h1{font-family:'Rubik Burned',cursive; font-size:56px; color:#ff3300; text-shadow:0 0 25px #ff0000;}
-
-    #level-up{
-      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-      font-size:90px; color:gold; text-shadow:0 0 40px gold; animation:pulse 2s infinite; display:none; z-index:300;
+    .hero-btn:active { transform: scale(0.95); }
+    #menu, #shop {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.98);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      backdrop-filter: blur(20px);
     }
-    @keyframes pulse{0%,100%{transform:translate(-50%,-50%) scale(1);}50%{transform:translate(-50%,-50%) scale(1.3);}}
+    h1 {
+      font-family: 'Rubik Burned', cursive;
+      font-size: 5vw;
+      color: #ff4400;
+      text-shadow: 0 0 40px #ff0000;
+      margin-bottom: 40px;
+    }
+    .btn {
+      margin: 15px;
+      padding: 20px 50px;
+      background: linear-gradient(45deg, #ff4444, #ff8800);
+      border: none;
+      border-radius: 50px;
+      color: white;
+      font-size: 24px;
+      font-weight: 700;
+      box-shadow: 0 10px 30px rgba(255,68,0,0.6);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(255,68,0,0.8); }
+    .btn:active { transform: scale(0.98); }
+    #boss-hp {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 400px;
+      height: 40px;
+      background: #333;
+      border: 4px solid #ff0000;
+      border-radius: 20px;
+      overflow: hidden;
+      display: none;
+    }
+    #boss-hp-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff0000, #ffff00);
+      width: 100%;
+      transition: width 0.5s;
+      box-shadow: 0 0 20px #ff0000;
+    }
   </style>
 </head>
 <body>
+  <div id="container">
+    <canvas id="canvas"></canvas>
+    <div id="hud">
+      <div class="hud-item">Ур. <span id="level">1</span></div>
+      <div class="hud-item">Спасено <span id="saved">0</span></div>
+      <div class="hud-item">Жизни ❤️❤️❤️</div>
+      <div class="hud-item">Комбо ×<span id="combo">1</span></div>
+      <div class="hud-item">💰 <span id="money">0</span></div>
+    </div>
+    <div id="rank">НОВИЧОК</div>
+    <div id="boss-hp"><div id="boss-hp-fill"></div></div>
+    <div id="team">
+      <div class="hero-btn active" data-hero="0"></div>
+      <div class="hero-btn" data-hero="1"></div>
+      <div class="hero-btn" data-hero="2"></div>
+      <div class="hero-btn" data-hero="3"></div>
+    </div>
 
-<div id="game">
-  <div id="hud">
-    <div class="stat">Огонь: <span id="fireCount">0</span></div>
-    <div class="stat">Люди: <span id="saved">0</span>/ <span id="totalPeople">0</span></div>
-    <div class="stat">Жизни: <div id="lives"><span class="heart">❤️</span><span class="heart">❤️</span><span class="heart">❤️</span></div></div>
-    <div class="stat">Уровень <span id="level">1</span></div>
-    <div class="stat">Монеты <span id="money">0</span></div>
+    <!-- Overlay Menus -->
+    <div id="menu">
+      <h1>🔥 ПОЖАРНЫЙ ЛЕГЕНДА</h1>
+      <button class="btn" onclick="startGame()">🚀 НАЧАТЬ МИССИЮ</button>
+      <button class="btn" onclick="openShop()">🛒 МАГАЗИН</button>
+    </div>
+    <div id="shop">
+      <h1>🛒 УЛУЧШЕНИЯ</h1>
+      <button class="btn" onclick="buyUpgrade('hose')">Шланг +50% — 500💰</button>
+      <button class="btn" onclick="buyUpgrade('ladder')">Лестница ×2 — 2000💰</button>
+      <button class="btn" onclick="buyUpgrade('auto')">Авто-спас — 10000💰</button>
+      <button class="btn" onclick="buyUpgrade('life')">❤️ Жизнь — 5000💰</button>
+      <button class="btn" onclick="closeShop()">🔙 НАЗАД</button>
+    </div>
   </div>
 
-  <div id="truck"></div>
-  <div id="fire-container"></div>
+  <script>
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
 
-  <div id="level-up">УРОВЕНЬ ПРОЙДЕН!</div>
+    // Game State
+    let gameState = {
+      level: 1, money: 0, saved: 0, lives: 3, combo: 1, comboTime: 0,
+      activeHero: 0, upgrades: {hose:1, ladder:1, auto: false, lives:0},
+      bossActive: false, bossHP: 100,
+      particles: [], buildings: [], rain: [], shake: 0,
+      gameActive: false, weather: 'clear'
+    };
 
-  <!-- Главное меню -->
-  <div id="menu">
-    <h1>ПОЖАРНЫЙ: СПАСАТЕЛЬ</h1>
-    <button class="btn" onclick="startGame()">НАЧАТЬ МИССИЮ</button>
-    <button class="btn" onclick="openShop()">МАГАЗИН</button>
-    <button class="btn" onclick="openAchieves()">ДОСТИЖЕНИЯ</button>
-  </div>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let cw, ch;
 
-  <!-- Магазин (добавил новые улучшения) -->
-  <div id="shop">
-    <h1>МАГАЗИН УЛУЧШЕНИЙ</h1>
-    <button class="btn" onclick="buy('hose')">Мощный шланг +50% — 500</button>
-    <button class="btn" onclick="buy('ladder')">Длинная лестница (спасение ×2) — 2000</button>
-    <button class="btn" onclick="buy('speed')">Скорость машины +50% — 1000</button>
-    <button class="btn" onclick="buy('auto')">Автоспасение людей — 8000</button>
-    <button class="btn" onclick="buy('life')">Доп. жизнь ❤️ — 3000</button>
-    <button class="btn" onclick="closeShop()">НАЗАД</button>
-  </div>
-
-  <div id="achieves">
-    <h1>ДОСТИЖЕНИЯ</h1>
-    <div class="achievement">Спаситель 100 человек ❤️</div>
-    <div class="achievement">Без потерь на 10 уровнях</div>
-    <div class="achievement">Легенда пожарной охраны — 50 уровень</div>
-    <button class="btn" onclick="closeAchieves()">НАЗАД</button>
-  </div>
-
-  <div id="gameover">
-    <h1>МИССИЯ ПРОВАЛЕНА</h1>
-    <p style="font-size:24px;margin:20px;">Сгорело слишком много людей...</p>
-    <button class="btn" onclick="startGame()">ПОПРОБОВАТЬ СНОВА</button>
-    <button class="btn" onclick="document.getElementById('gameover').style.display='none';document.getElementById('menu').style.display='flex';">МЕНЮ</button>
-  </div>
-</div>
-
-<script>
-Telegram.WebApp.ready(); Telegram.WebApp.expand();
-
-let money = 0, level = 1, saved = 0, lost = 0, totalPeople = 0;
-let lives = 3;
-let hosePower = 1, ladderPower = 1, autoSave = false;
-let gameActive = false;
-
-const fireContainer = document.getElementById('fire-container');
-const moneyEl = document.getElementById('money');
-const savedEl = document.getElementById('saved');
-const totalEl = document.getElementById('totalPeople');
-const levelEl = document.getElementById('level');
-
-const sounds = {
-  save: new Audio('https://cdn.freesound.org/previews/321/321652_5123856-lq.mp3'),    // крик → спасение
-  burn: new Audio('https://cdn.freesound.org/previews/276/276956_5123856-lq.mp3'),    // человек сгорел
-  extinguish: new Audio('https://cdn.freesound.org/previews/612/612345_5674468-lq.mp3'),
-  levelup: new Audio('https://cdn.freesound.org/previews/320/320656_5270804-lq.mp3')
-};
-
-function createFireWithPeople() {
-  if (!gameActive) return;
-
-  const fire = document.createElement('div');
-  fire.className = 'fire';
-  const x = Math.random() * (innerWidth - 120) + 60;
-  const y = Math.random() * (innerHeight - 350) + 100;
-  fire.style.left = x + 'px';
-  fire.style.top = y + 'px';
-  fireContainer.appendChild(fire);
-
-  // 70% шанс появления человека на уровне 3+
-  const hasPerson = level >= 3 && Math.random() < 0.7;
-  let person = null;
-  if (hasPerson) {
-    totalPeople++;
-    totalEl.textContent = totalPeople;
-
-    person = document.createElement('div');
-    person.className = 'person';
-    fire.appendChild(person);
-  }
-
-  const clickHandler = () => {
-    if (!gameActive) return;
-    Telegram.WebApp.HapticFeedback.impactOccurred('heavy');
-
-    // Тушим огонь
-    money += 10 * hosePower;
-    sounds.extinguish.play();
-
-    // Если был человек — спасаем!
-    if (person) {
-      saved++;
-      savedEl.textContent = saved;
-      money += 50 * ladderPower;  // спасение — жирный бонус
-      sounds.save.play();
-
-      popup('+СПАСЕН!', x, y, '#00ff00');
-      popup('+' + (50 * ladderPower), x + 60, y - 40, '#ffff00');
-    } else {
-      popup('+' + (10 * hosePower), x + 20, y, '#ffff00');
+    function resize() {
+      cw = canvas.width = window.innerWidth;
+      ch = canvas.height = window.innerHeight;
     }
+    window.addEventListener('resize', resize);
+    resize();
 
-    fire.style.transition = 'all 0.5s';
-    fire.style.transform = 'scale(0)';
-    fire.style.opacity = '0';
-    setTimeout(() => fire.remove(), 600);
-    fire.removeEventListener('click', clickHandler);
-  };
-
-  fire.addEventListener('click', clickHandler);
-  fire.addEventListener('touchstart', e => {e.preventDefault(); clickHandler();});
-
-  // Если не потушили вовремя
-  setTimeout(() => {
-    if (fire && fire.parentNode) {
-      if (person) {
-        lost++;
-        lives--;
-        updateLives();
-        sounds.burn.play();
-        popup('ЧЕЛОВЕК СГОРЕЛ!', x-30, y-50, '#ff0000');
-        if (lives <= 0) gameOver();
+    // Particle Class for Fire, Smoke, Sparks, Rain
+    class Particle {
+      constructor(x, y, type, vx = 0, vy = 0) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx + (Math.random() - 0.5) * 2;
+        this.vy = vy + (Math.random() - 0.5) * 2;
+        this.life = 1;
+        this.decay = 0.02 + Math.random() * 0.01;
+        this.size = 2 + Math.random() * 4;
+        this.type = type; // 'fire', 'smoke', 'spark', 'rain'
+        this.color = type === 'fire' ? `hsl(${30 + Math.random()*30}, 100%, ${50 + Math.random()*30}%)` :
+                      type === 'smoke' ? `rgba(100,100,100,${0.5 + Math.random()*0.5})` :
+                      type === 'spark' ? '#ffff00' : '#00aaff';
       }
-      fire.remove();
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += 0.1; // gravity
+        this.vx *= 0.98;
+        this.life -= this.decay;
+        if (this.type === 'fire') this.size += 0.1;
+      }
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = this.life;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 10 + this.life * 20;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
     }
-  }, Math.max(6000, 10000 - level * 300));
-}
 
-// Попап
-function popup(text, x, y, color = '#ffff00') {
-  const el = document.createElement('div');
-  el.className = 'popup';
-  el.textContent = text;
-  el.style.left = x + 'px';
-  el.style.top = y + 'px';
-  el.style.color = color;
-  el.style.textShadow = '0 0 15px ' + color;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1500);
-}
+    // Building Class
+    class Building {
+      constructor() {
+        this.x = Math.random() * (cw - 200) + 100;
+        this.y = ch - 300;
+        this.width = 150 + Math.random() * 80;
+        this.height = 250 + Math.random() * 100;
+        this.windows = [];
+        this.fireWindows = [];
+        this.peopleWindows = [];
+        this.life = 100;
+        for (let row = 0; row < 4; row++) {
+          for (let col = 0; col < 3; col++) {
+            const wx = this.x + 20 + col * 40;
+            const wy = this.y + 30 + row * 50;
+            this.windows.push({x: wx, y: wy, w: 30, h: 35});
+            if (Math.random() < 0.5 + gameState.level * 0.02) {
+              this.fireWindows.push({x: wx+5, y: wy+5, idx: this.windows.length-1});
+              if (Math.random() < 0.6) this.peopleWindows.push({idx: this.windows.length-1, wave: 0});
+            }
+          }
+        }
+        this.time = 0;
+      }
+      update(dt) {
+        this.time += dt;
+        this.fireWindows.forEach(fw => {
+          // Animate fire particles
+          if (Math.random() < 0.3) {
+            for (let i = 0; i < 5; i++) {
+              gameState.particles.push(new Particle(fw.x + 15 + Math.random()*10, fw.y + 30, 'fire', 0, -1 - Math.random()));
+            }
+          }
+          if (Math.random() < 0.1) gameState.particles.push(new Particle(this.x + this.width/2, this.y, 'smoke', (Math.random()-0.5)*2, -2));
+        });
+        this.peopleWindows.forEach(pw => pw.wave += dt * 3);
+        return this.life > 0;
+      }
+      draw() {
+        // Building body with glow
+        ctx.shadowColor = '#ff4400';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = `hsl(0, 50%, ${10 + Math.sin(gameState.time * 0.01) * 5}%)`;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        
+        // Windows
+        this.windows.forEach((w, i) => {
+          ctx.shadowBlur = 0;
+          if (this.fireWindows.some(f => f.idx === i)) {
+            // Fire glow
+            ctx.shadowColor = '#ff8800';
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = `hsl(${20 + Math.sin(gameState.time + w.x) * 10}, 100%, 60%)`;
+          } else {
+            ctx.fillStyle = '#112';
+            ctx.strokeStyle = '#445';
+            ctx.lineWidth = 1;
+          }
+          ctx.fillRect(w.x, w.y, w.w, w.h);
+          ctx.strokeRect(w.x, w.y, w.w, w.h);
+        });
 
-function updateLives() {
-  const hearts = document.querySelectorAll('.heart');
-  for(let i=0; i<hearts.length; i++) {
-    hearts[i].style.opacity = i < lives ? 1 : 0.3;
-  }
-}
+        // People
+        this.peopleWindows.forEach(pw => {
+          const w = this.windows[pw.idx];
+          ctx.save();
+          ctx.translate(w.x + 15, w.y + 25);
+          ctx.rotate(Math.sin(pw.wave) * 0.2);
+          // Head
+          ctx.fillStyle = '#ffddaa';
+          ctx.beginPath();
+          ctx.arc(0, -8, 5, 0, Math.PI*2);
+          ctx.fill();
+          // Body
+          ctx.fillStyle = '#aa4400';
+          ctx.fillRect(-3, -3, 6, 15);
+          // Arms wave
+          ctx.strokeStyle = '#aa4400';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, 2);
+          ctx.lineTo(-8 * Math.sin(pw.wave), 8 + 5 * Math.cos(pw.wave));
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, 2);
+          ctx.lineTo(8 * Math.sin(pw.wave), 8 - 5 * Math.cos(pw.wave));
+          ctx.stroke();
+          ctx.restore();
+        });
 
-function checkLevelUp() {
-  if (saved >= level * 15) {
-    level++;
-    levelEl.textContent = level;
-    document.getElementById('level-up').style.display = 'block';
-    sounds.levelup.play();
-    setTimeout(() => document.getElementById('level-up').style.display = 'none', 3000);
-  }
-}
+        ctx.shadowBlur = 0;
+      }
+      save() {
+        // Extinguish + save people
+        let people = this.peopleWindows.length;
+        if (people > 0) {
+          gameState.saved += people;
+          gameState.money += people * 100 * gameState.combo * gameState.upgrades.ladder;
+          gameState.combo++;
+          gameState.comboTime = 120;
+          showCombo(people);
+        }
+        gameState.money += this.fireWindows.length * 20 * gameState.upgrades.hose;
+        // Sparks
+        for (let i = 0; i < 20; i++) {
+          gameState.particles.push(new Particle(this.x + this.width/2, this.y + this.height/2, 'spark', (Math.random()-0.5)*10, -Math.random()*10));
+        }
+        return true;
+      }
+    }
 
-function spawnLoop() {
-  if (!gameActive) return;
-  createFireWithPeople();
-  const delay = Math.max(1000, 4000 - level * 180);
-  setTimeout(spawnLoop, delay);
-}
+    // Boss Building
+    let boss = null;
+    function spawnBoss() {
+      gameState.bossActive = true;
+      gameState.bossHP = 200 + gameState.level * 20;
+      boss = {
+        x: cw/2 - 300,
+        y: ch - 600,
+        width: 600,
+        height: 550,
+        windows: [],
+        fireWindows: [],
+        peopleWindows: [],
+        time: 0
+      };
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const wx = boss.x + 30 + col * 60;
+          const wy = boss.y + 40 + row * 60;
+          boss.windows.push({x: wx, y: wy, w: 45, h: 45});
+          boss.fireWindows.push({x: wx+8, y: wy+8, idx: boss.windows.length-1});
+          if (Math.random() < 0.8) boss.peopleWindows.push({idx: boss.windows.length-1, wave: 0});
+        }
+      }
+      document.getElementById('boss-hp').style.display = 'block';
+    }
 
-function gameOver() {
-  gameActive = false;
-  document.getElementById('gameover').style.display = 'flex';
-  Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-}
+    function updateBoss(dt) {
+      boss.time += dt;
+      boss.fireWindows.forEach(fw => {
+        for (let i = 0; i < 8; i++) gameState.particles.push(new Particle(fw.x + 22, fw.y + 35, 'fire', 0, -2));
+      });
+      boss.peopleWindows.forEach(pw => pw.wave += dt * 2);
+    }
 
-function startGame() {
-  document.querySelectorAll('#menu,#shop,#achieves,#gameover').forEach(m => m.style.display = 'none');
-  fireContainer.innerHTML = '';
-  gameActive = true;
-  saved = lost = totalPeople = 0;
-  lives = 3 + (localStorage.getItem('extraLives') || 0);
-  updateLives();
-  savedEl.textContent = totalEl.textContent = '0';
-  spawnLoop();
-}
+    function drawBoss() {
+      // Massive glow
+      ctx.shadowColor = '#ff2200';
+      ctx.shadowBlur = 50;
+      ctx.fillStyle = '#220';
+      ctx.fillRect(boss.x, boss.y, boss.width, boss.height);
+      
+      boss.windows.forEach((w, i) => {
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = '#ffaa00';
+        ctx.fillStyle = `hsl(${15 + Math.sin(boss.time * 0.02 + w.x * 0.01) * 8}, 100%, 55%)`;
+        ctx.fillRect(w.x, w.y, w.w, w.h);
+      });
 
-// Магазин
-function buy(item) {
-  if (item === 'hose' && money >= 500) { money -= 500; hosePower += 0.5; }
-  if (item === 'ladder' && money >= 2000) { money -= 2000; ladderPower += 1; }
-  if (item === 'speed' && money >= 1000) { money -= 1000; document.getElementById('truck').style.animation = `drive ${3/(1 + (ladderPower-1))}s infinite linear`; }
-  if (item === 'auto' && money >= 8000 && !autoSave) {
-    money -= 8000; autoSave = true;
+      // People like in building
+      boss.peopleWindows.forEach(pw => {
+        const w = boss.windows[pw.idx];
+        ctx.save();
+        ctx.translate(w.x + 22, w.y + 22);
+        ctx.rotate(Math.sin(pw.wave) * 0.3);
+        ctx.fillStyle = '#ffddaa';
+        ctx.beginPath();
+        ctx.arc(0, -10, 7, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#aa4400';
+        ctx.fillRect(-4, -5, 8, 20);
+        ctx.strokeStyle = '#aa4400';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-12 * Math.sin(pw.wave), 12 + 8 * Math.cos(pw.wave));
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(12 * Math.sin(pw.wave), 12 - 8 * Math.cos(pw.wave));
+        ctx.stroke();
+        ctx.restore();
+      });
+      ctx.shadowBlur = 0;
+    }
+
+    function hitBoss(x, y) {
+      gameState.bossHP -= 10 * gameState.upgrades.hose;
+      document.getElementById('boss-hp-fill').style.width = (gameState.bossHP / (200 + gameState.level*20) * 100) + '%';
+      gameState.shake = 20;
+      for (let i = 0; i < 30; i++) {
+        gameState.particles.push(new Particle(x, y, 'spark', (Math.random()-0.5)*20, -Math.random()*15));
+      }
+      if (gameState.bossHP <= 0) {
+        gameState.bossActive = false;
+        gameState.money += 20000;
+        gameState.level += 2;
+        document.getElementById('boss-hp').style.display = 'none';
+        showPopup('БОСС ПОБЕЖДЁН!', cw/2, ch/2, '#ffff00', 60);
+      }
+    }
+
+    // Weather Rain
+    function spawnRain() {
+      if (gameState.weather !== 'rain') return;
+      for (let i = 0; i < 5; i++) {
+        gameState.rain.push({
+          x: Math.random() * cw,
+          y: 0,
+          vy: 15 + Math.random() * 10,
+          life: 1
+        });
+      }
+    }
+
+    // HUD Updates
+    function updateHUD() {
+      document.getElementById('level').textContent = gameState.level;
+      document.getElementById('saved').textContent = gameState.saved;
+      document.getElementById('lives').textContent = '❤️'.repeat(gameState.lives);
+      document.getElementById('combo').textContent = gameState.combo;
+      document.getElementById('money').textContent = gameState.money.toLocaleString();
+      if (gameState.saved > gameState.level * 25) {
+        gameState.level++;
+        updateRank();
+      }
+    }
+
+    function updateRank() {
+      const ranks = ['НОВИЧОК', 'ПОЖАРНЫЙ', 'СТАРШИНА', 'КАПИТАН', 'МАЙОР', 'ГЕРОЙ', 'МАРШАЛ 🔥'];
+      const rankIdx = Math.min(Math.floor((gameState.level - 1) / 10), ranks.length - 1);
+      document.getElementById('rank').textContent = ranks[rankIdx];
+    }
+
+    // Effects
+    function showPopup(text, x, y, color, size = 40) {
+      // Floating text animation via particles or ctx
+      ctx.fillStyle = color;
+      ctx.font = `${size}px Orbitron`;
+      ctx.textAlign = 'center';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 30;
+      let a = 1;
+      const anim = () => {
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.fillText(text, x, y);
+        ctx.restore();
+        a -= 0.05;
+        if (a > 0) requestAnimationFrame(anim);
+      };
+      anim();
+    }
+
+    function showCombo(people) {
+      showPopup(`×${gameState.combo} СПАСЕНО!`, cw/2, 200, '#00ff00', 50);
+    }
+
+    // Main Loop
+    let lastTime = 0;
+    function loop(time) {
+      const dt = time - lastTime;
+      lastTime = time;
+
+      // Clear with trail effect
+      ctx.fillStyle = 'rgba(0,0,20,0.1)';
+      ctx.fillRect(0, 0, cw, ch);
+
+      // Shake
+      ctx.save();
+      if (gameState.shake > 0) {
+        ctx.translate((Math.random() - 0.5) * gameState.shake, (Math.random() - 0.5) * gameState.shake);
+        gameState.shake *= 0.9;
+      }
+
+      // Background stars/parallax
+      ctx.fillStyle = '#fff';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#aaa';
+      for (let i = 0; i < 100; i++) {
+        const star = (Math.sin(time * 0.001 + i) + 1) / 2;
+        ctx.globalAlpha = star * 0.5;
+        ctx.fillRect(i * 10 % cw, (i * 15 + time * 0.1) % ch, 2, 2);
+      }
+      ctx.shadowBlur = 0;
+
+      // Rain
+      spawnRain();
+      gameState.rain.forEach((drop, i) => {
+        drop.y += drop.vy;
+        drop.life -= 0.01;
+        ctx.strokeStyle = `rgba(0,150,255,${drop.life})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(drop.x, drop.y);
+        ctx.lineTo(drop.x + 5, drop.y + 10);
+        ctx.stroke();
+        if (drop.y > ch || drop.life <= 0) gameState.rain.splice(i, 1);
+      });
+
+      // Particles
+      gameState.particles.forEach((p, i) => {
+        p.update();
+        p.draw();
+        if (p.life <= 0) gameState.particles.splice(i, 1);
+      });
+
+      // Buildings
+      if (!gameState.bossActive) {
+        gameState.buildings.forEach((b, i) => {
+          if (!b.update(dt)) {
+            // Burned - lose life if people
+            if (b.peopleWindows.length > 0) loseLife();
+            gameState.buildings.splice(i, 1);
+          } else b.draw();
+        });
+        if (gameState.buildings.length < 3 + gameState.level * 0.5 && Math.random() < 0.02) {
+          gameState.buildings.push(new Building());
+        }
+      } else {
+        updateBoss(dt);
+        drawBoss();
+      }
+
+      // Truck - animated at bottom
+      drawTruck();
+
+      ctx.restore();
+
+      // Combo decay
+      if (gameState.comboTime > 0) gameState.comboTime--;
+      else gameState.combo = 1;
+
+      updateHUD();
+
+      if (gameState.gameActive) requestAnimationFrame(loop);
+    }
+
+    function drawTruck() {
+      const truckX = (cw / 2) + Math.sin(gameState.time * 0.005) * 100;
+      ctx.save();
+      ctx.translate(truckX, ch - 120);
+      
+      // Body glow
+      ctx.shadowColor = '#ff4400';
+      ctx.shadowBlur = 20;
+      
+      // Cab
+      ctx.fillStyle = '#cc0000';
+      ctx.fillRect(-60, -40, 80, 50);
+      // Bed
+      ctx.fillStyle = '#aa0000';
+      ctx.fillRect(-100, -25, 140, 35);
+      
+      // Wheels animate
+      const wheelRot = gameState.time * 0.1;
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.arc(-70, -5, 18, 0, Math.PI*2);
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+      ctx.save();
+      ctx.rotate(wheelRot);
+      ctx.beginPath();
+      ctx.arc(0, 0, 12, 0, Math.PI*2);
+      ctx.fillStyle = '#111';
+      ctx.fill();
+      ctx.restore();
+      
+      ctx.beginPath();
+      ctx.arc(60, -5, 18, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.save();
+      ctx.rotate(-wheelRot);
+      ctx.beginPath();
+      ctx.arc(0, 0, 12, 0, Math.PI*2);
+      ctx.fillStyle = '#111';
+      ctx.fill();
+      ctx.restore();
+      
+      // Siren glow
+      ctx.shadowBlur = 30;
+      ctx.shadowColor = '#00ff00';
+      ctx.fillStyle = `hsl(120, 100%, ${50 + Math.sin(gameState.time * 0.2) * 25}%)`;
+      ctx.fillRect(-20, -55, 40, 15);
+      
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // Input
+    canvas.addEventListener('click', (e) => {
+      if (!gameState.gameActive) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // Check hit building
+      for (let b of gameState.buildings) {
+        if (x > b.x && x < b.x + b.width && y > b.y && y < b.y + b.height) {
+          b.save();
+          gameState.buildings = gameState.buildings.filter(bb => bb !== b);
+          Telegram.WebApp.HapticFeedback.impactOccurred('heavy');
+          return;
+        }
+      }
+
+      // Boss windows
+      if (gameState.bossActive && x > boss.x && x < boss.x + boss.width && y > boss.y && y < boss.y + boss.height) {
+        hitBoss(x, y);
+        Telegram.WebApp.HapticFeedback.impactOccurred('strong');
+      }
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      // Same as click
+      // ... (copy click logic)
+    });
+
+    // Hero switch
+    document.querySelectorAll('.hero-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelector('.hero-btn.active').classList.remove('active');
+        btn.classList.add('active');
+        gameState.activeHero = parseInt(btn.dataset.hero);
+      });
+    });
+
+    function loseLife() {
+      gameState.lives--;
+      if (gameState.lives <= 0) {
+        gameState.gameActive = false;
+        Telegram.WebApp.showAlert(`ПРОВАЛ! Уровень ${gameState.level}\nСпасено: ${gameState.saved}`);
+        showMenu();
+      }
+      gameState.shake = 30;
+    }
+
+    // Upgrades
+    function buyUpgrade(type) {
+      const costs = {hose:500, ladder:2000, auto:10000, life:5000};
+      if (gameState.money >= costs[type]) {
+        gameState.money -= costs[type];
+        if (type === 'hose') gameState.upgrades.hose += 0.5;
+        if (type === 'ladder') gameState.upgrades.ladder++;
+        if (type === 'auto') gameState.upgrades.auto = true;
+        if (type === 'life') gameState.lives++;
+      }
+    }
+
+    // Menu functions
+    function startGame() {
+      document.getElementById('menu').style.display = 'none';
+      document.getElementById('shop').style.display = 'none';
+      gameState.gameActive = true;
+      gameState.buildings = [];
+      gameState.particles = [];
+      gameState.rain = [];
+      gameState.level = 1;
+      gameState.saved = 0;
+      gameState.lives = 3 + gameState.upgrades.lives;
+      gameState.combo = 1;
+      gameState.bossActive = false;
+      requestAnimationFrame(loop);
+    }
+
+    function openShop() {
+      document.getElementById('menu').style.display = 'none';
+      document.getElementById('shop').style.display = 'flex';
+    }
+
+    function closeShop() {
+      document.getElementById('shop').style.display = 'none';
+      document.getElementById('menu').style.display = 'flex';
+    }
+
+    function showMenu() {
+      document.getElementById('menu').style.display = 'flex';
+    }
+
+    // Auto save if upgrade
     setInterval(() => {
-      if (!gameActive) return;
-      const persons = document.querySelectorAll('.person');
-      if (persons.length > 0) persons[0].parentNode.click();
-    }, 1200);
-  }
-  if (item === 'life' && money >= 3000) {
-    money -= 3000; lives++; localStorage.setItem('extraLives', lives-3);
-    updateLives();
-  }
-  moneyEl.textContent = money;
-}
+      if (gameState.upgrades.auto && gameState.gameActive) {
+        // Simulate auto hit on nearest building
+        if (gameState.buildings.length > 0) {
+          gameState.buildings[0].save();
+          gameState.buildings.shift();
+        }
+      }
+    }, 2000);
 
-// Меню функции
-function openShop(){document.getElementById('menu').style.display='none';document.getElementById('shop').style.display='flex';}
-function closeShop(){document.getElementById('shop').style.display='none';document.getElementById('menu').style.display='flex';}
-function openAchieves(){document.getElementById('menu').style.display='none';document.getElementById('achieves').style.display='flex';}
-function closeAchieves(){document.getElementById('achieves').style.display='none';document.getElementById('menu').style.display='flex';}
+    // Weather cycle
+    setInterval(() => {
+      if (Math.random() < 0.3) {
+        gameState.weather = 'rain';
+        setTimeout(() => gameState.weather = 'clear', 10000);
+      }
+    }, 20000);
 
-window.onload = () => document.getElementById('menu').style.display = 'flex';
-</script>
+    // Boss spawn every 10 levels
+    setInterval(() => {
+      if (gameState.level % 10 === 0 && !gameState.bossActive && gameState.gameActive) {
+        spawnBoss();
+      }
+    }, 1000);
+
+    // Init
+    window.onload = () => {
+      gameState.time = 0;
+      showMenu();
+    };
+
+    // Global time
+    setInterval(() => gameState.time += 16, 16);
+  </script>
 </body>
 </html>
