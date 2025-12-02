@@ -3,662 +3,757 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>EMBER SQUAD: TACTICAL</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <title>HAZARD OPS: BLACKOUT</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Khand:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap');
+        /* --- CSS SYSTEM --- */
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
         :root {
-            --bg: #0a0a0a;
-            --ui-panel: rgba(20, 25, 30, 0.95);
-            --accent: #ff5500;
-            --warn: #ffcc00;
-            --safe: #00ffcc;
+            --bg: #020202;
+            --ui-base: rgba(16, 20, 24, 0.95);
+            --ui-border: #333;
+            --accent: #e63946; /* Emergency Red */
+            --primary: #457b9d; /* Tactical Blue */
+            --success: #2a9d8f;
+            --text-main: #f1faee;
+            --scanline: rgba(0, 0, 0, 0.5);
         }
+
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
 
         body {
-            margin: 0; background: var(--bg); overflow: hidden;
-            font-family: 'Khand', sans-serif;
-            touch-action: none; user-select: none; -webkit-user-select: none;
-            color: white;
+            margin: 0; background-color: var(--bg); overflow: hidden;
+            font-family: 'Share Tech Mono', monospace; color: var(--text-main);
+            width: 100vw; height: 100vh;
         }
 
-        canvas { display: block; width: 100%; height: 100%; }
+        canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 
-        /* VIGNETTE & ATMOSPHERE */
-        .overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 40%, #000 120%);
-            pointer-events: none; z-index: 2;
+        /* CRT EFFECTS */
+        .crt-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
         }
-        .scanlines {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 1px, transparent 1px, transparent 2px);
-            pointer-events: none; z-index: 3; opacity: 0.5;
+        .vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 90;
+            background: radial-gradient(circle, transparent 50%, black 120%);
         }
 
-        /* UI */
+        /* UI LAYOUT */
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 10; pointer-events: none; display: flex; flex-direction: column;
-            justify-content: space-between;
+            z-index: 50; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
         }
 
-        /* TOP HUD */
-        .hud {
-            display: flex; justify-content: space-between; padding: 15px;
-            font-family: 'Roboto Mono', monospace;
+        /* HUD */
+        .hud-header {
+            display: flex; justify-content: space-between; padding: 10px 20px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
         }
+        .stat-mod {
+            background: var(--ui-base); border: 1px solid var(--ui-border);
+            padding: 5px 10px; border-left: 3px solid var(--primary);
+            transform: skewX(-10deg); box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .stat-mod.danger { border-left-color: var(--accent); animation: pulseRed 1s infinite; }
+        .label { font-size: 10px; color: #888; text-transform: uppercase; }
+        .value { font-size: 18px; font-weight: bold; }
         
-        .status-box {
-            background: var(--ui-panel); border: 1px solid #444;
-            padding: 10px; border-radius: 4px; min-width: 80px;
-            border-left: 3px solid var(--accent);
-        }
-
-        .stat-label { font-size: 10px; color: #888; }
-        .stat-val { font-size: 18px; font-weight: bold; }
-
-        .bar-bg { width: 100%; height: 6px; background: #333; margin-top: 4px; }
-        .bar-fill { height: 100%; transition: width 0.2s; }
+        .bar-cnt { width: 80px; height: 6px; background: #222; margin-top: 4px; border: 1px solid #444; }
+        .bar-fill { height: 100%; background: var(--primary); transition: width 0.2s; }
 
         /* CONTROLS */
         .controls {
-            padding: 20px; padding-bottom: 40px; pointer-events: auto;
-            display: flex; justify-content: space-between; align-items: flex-end;
+            padding: 20px; pointer-events: auto; display: flex; justify-content: space-between; align-items: flex-end;
         }
-
-        .joystick-area {
+        .stick-zone {
             width: 140px; height: 140px; position: relative;
-            background: rgba(255,255,255,0.05); border-radius: 50%;
-            border: 1px dashed rgba(255,255,255,0.2);
+            border: 1px dashed rgba(255,255,255,0.2); border-radius: 50%;
         }
-
         .knob {
-            width: 50px; height: 50px; background: rgba(255,255,255,0.2);
-            border-radius: 50%; position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%); box-shadow: 0 0 10px #000;
-            pointer-events: none;
+            width: 50px; height: 50px; background: rgba(255,255,255,0.1); border: 1px solid #fff;
+            border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
         }
 
-        .actions {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-        }
-
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .btn {
-            width: 60px; height: 60px; border-radius: 12px;
-            background: rgba(20,20,20,0.8); border: 1px solid #444;
-            color: #fff; font-size: 24px; display: flex; justify-content: center; align-items: center;
-            transition: 0.1s; backdrop-filter: blur(4px);
+            width: 60px; height: 60px; background: rgba(20,20,20,0.8); border: 1px solid #555;
+            border-radius: 12px; color: white; display: flex; justify-content: center; align-items: center;
+            font-size: 24px; backdrop-filter: blur(4px); transition: 0.1s;
         }
-        .btn:active, .btn.active { background: var(--accent); border-color: #fff; transform: scale(0.95); }
-        .btn-tool.active { background: var(--safe); color: #000; }
+        .btn:active { background: var(--primary); border-color: #fff; transform: scale(0.95); }
+        .btn-lg { width: 70px; height: 70px; background: rgba(230, 57, 70, 0.2); border-color: var(--accent); }
+        .btn-lg:active { background: var(--accent); }
 
-        /* TOOL SELECTOR */
-        .tools {
-            position: absolute; bottom: 160px; right: 20px; pointer-events: auto;
-            display: flex; flex-direction: column; gap: 10px;
-        }
-        .tool-icon {
-            width: 50px; height: 50px; background: #111; border: 1px solid #333;
-            display: flex; justify-content: center; align-items: center; font-size: 20px;
-            cursor: pointer; opacity: 0.5; transition: 0.2s;
-        }
-        .tool-icon.selected { opacity: 1; border-color: var(--safe); background: rgba(0, 255, 204, 0.1); box-shadow: 0 0 10px var(--safe); }
-
-        /* INTERACTION PROMPT */
-        #prompt {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -80px);
-            background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 4px;
-            border: 1px solid #fff; font-size: 12px; display: none; text-transform: uppercase;
-        }
-
-        /* MENU */
+        /* MENUS */
         .modal {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background: #000; z-index: 100; display: flex; align-items: center; justify-content: center;
-            transition: 0.5s;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050505;
+            z-index: 200; display: flex; align-items: center; justify-content: center; transition: 0.3s;
         }
         .modal.hidden { opacity: 0; pointer-events: none; }
         
-        .briefing {
-            width: 90%; max-width: 500px; background: #111; border: 1px solid #333; padding: 30px;
-            box-shadow: 0 0 50px rgba(255, 85, 0, 0.2);
+        .terminal {
+            width: 90%; max-width: 600px; background: #0a0a0a; border: 1px solid #444;
+            padding: 20px; position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.8);
         }
-        h1 { margin: 0; color: var(--accent); font-size: 32px; line-height: 0.9; }
-        .mission-data { margin: 20px 0; font-family: 'Roboto Mono'; font-size: 12px; color: #888; border-top: 1px solid #333; padding-top: 10px; }
+        .terminal::before { content: ''; position: absolute; top:0; left:0; width:100%; height:4px; background: var(--accent); }
         
-        .deploy-btn {
-            width: 100%; padding: 15px; background: var(--accent); color: white; border: none;
-            font-family: 'Khand'; font-size: 20px; font-weight: bold; cursor: pointer; letter-spacing: 2px;
+        .term-head { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+        .term-title { font-size: 24px; color: var(--accent); font-weight: bold; }
+        
+        .loadout-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .card {
+            background: #111; border: 1px solid #333; padding: 10px; cursor: pointer; transition: 0.2s; opacity: 0.6;
         }
+        .card:hover, .card.selected { border-color: var(--primary); opacity: 1; background: rgba(69, 123, 157, 0.1); }
+        .card-icon { font-size: 24px; margin-bottom: 5px; }
+        .card-name { font-size: 12px; font-weight: bold; color: #fff; }
+        .card-desc { font-size: 9px; color: #888; margin-top: 5px; }
 
-        /* FX */
-        .breathing { animation: breath 4s infinite ease-in-out; }
-        @keyframes breath { 0%{opacity:0.3} 50%{opacity:0.6} 100%{opacity:0.3} }
+        .start-btn {
+            width: 100%; padding: 15px; background: var(--accent); color: #fff; border: none;
+            font-family: inherit; font-size: 18px; font-weight: bold; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+        .start-btn:hover { background: #c92a35; }
+
+        /* NOTIFICATIONS */
+        .notify-area {
+            position: absolute; top: 20%; width: 100%; text-align: center; pointer-events: none;
+        }
+        .msg {
+            font-size: 20px; font-weight: bold; text-shadow: 0 2px 0 #000;
+            animation: slideUp 1.5s forwards; color: #fff;
+        }
+        @keyframes slideUp { 0%{opacity:1; transform:translateY(0);} 100%{opacity:0; transform:translateY(-50px);} }
+        @keyframes pulseRed { 0%{box-shadow:0 0 5px var(--accent);} 50%{box-shadow:0 0 20px var(--accent);} 100%{box-shadow:0 0 5px var(--accent);} }
+
     </style>
 </head>
 <body>
 
-    <div class="overlay"></div>
-    <div class="scanlines"></div>
-    <div class="overlay breathing" id="smoke-overlay" style="background: #fff; mix-blend-mode: overlay; opacity: 0; pointer-events: none;"></div>
+    <div class="crt-overlay"></div>
+    <div class="vignette"></div>
+    <canvas id="gameCanvas"></canvas>
 
-    <canvas id="game"></canvas>
-
+    <!-- UI INTERFACE -->
     <div id="ui-layer">
-        <div class="hud">
-            <div class="status-box">
-                <div class="stat-label">OXYGEN</div>
-                <div class="bar-bg"><div class="bar-fill" id="ui-ox" style="width:100%; background: #00ccff;"></div></div>
+        <div class="hud-header">
+            <div class="stat-mod">
+                <div class="label">SQUAD</div>
+                <div class="value" id="ui-squad">ONLINE</div>
             </div>
-            <div class="status-box" style="border-color: var(--warn);">
-                <div class="stat-label">TEMP</div>
-                <div class="stat-val" id="ui-temp">24°C</div>
+            <div class="stat-mod" id="temp-mod">
+                <div class="label">TEMP</div>
+                <div class="value" id="ui-temp">24°C</div>
             </div>
-            <div class="status-box" style="border-color: #0f0;">
-                <div class="stat-label">SQUAD</div>
-                <div class="stat-val" id="ui-obj">0/3</div>
+            <div class="stat-mod">
+                <div class="label">OXYGEN</div>
+                <div class="bar-cnt"><div class="bar-fill" id="ui-o2"></div></div>
             </div>
         </div>
 
-        <div id="prompt">PRESS [ACTION]</div>
-
-        <div class="tools">
-            <div class="tool-icon selected" id="t-hose" onclick="Player.setTool('hose')">💧</div>
-            <div class="tool-icon" id="t-axe" onclick="Player.setTool('axe')">🪓</div>
-            <div class="tool-icon" id="t-scanner" onclick="Player.setTool('scanner')">🌡️</div>
-        </div>
+        <div class="notify-area" id="notifications"></div>
 
         <div class="controls">
-            <div class="joystick-area" id="stick-move">
-                <div class="knob" id="knob-move"></div>
+            <div class="stick-zone" id="joystick">
+                <div class="knob" id="joy-knob"></div>
             </div>
-            <div class="actions">
-                <div class="btn" id="btn-act" ontouchstart="Player.action()" onmousedown="Player.action()">🖐️</div>
-                <div class="btn" id="btn-use" style="background: var(--accent);" ontouchstart="Player.useTool(true)" ontouchend="Player.useTool(false)" onmousedown="Player.useTool(true)" onmouseup="Player.useTool(false)">⚡</div>
+            
+            <div class="action-grid">
+                <div class="btn" onclick="Game.toggleCommand()">📡</div> <!-- Squad Command -->
+                <div class="btn" onclick="Game.switchTool()">🔄</div> <!-- Switch Weapon -->
+                <div class="btn" id="btn-interact" onmousedown="Input.action=true" onmouseup="Input.action=false" ontouchstart="Input.action=true" ontouchend="Input.action=false">🖐️</div>
+                <div class="btn btn-lg" id="btn-fire" onmousedown="Input.fire=true" onmouseup="Input.fire=false" ontouchstart="Input.fire=true" ontouchend="Input.fire=false">🔥</div>
             </div>
         </div>
     </div>
 
+    <!-- LOADOUT MENU -->
     <div id="menu" class="modal">
-        <div class="briefing">
-            <h1>EMBER SQUAD</h1>
-            <div style="color:#fff; font-size: 14px;">TACTICAL RESPONSE UNIT</div>
-            <div class="mission-data">
-                MISSION: RESIDENTIAL FIRE<br>
-                OBJECTIVE: RESCUE 3 CIVILIANS<br>
-                HAZARDS: BACKDRAFT, TOXIC SMOKE<br>
-                GEAR: HOSE, HALLIGAN BAR, THERMAL CAM
+        <div class="terminal">
+            <div class="term-head">
+                <span class="term-title">HAZARD OPS</span>
+                <span style="font-size:10px; color:#666;">v3.5.0 sys_ready</span>
             </div>
-            <button class="deploy-btn" onclick="Game.init()">BREACH & CLEAR</button>
+            
+            <div style="margin-bottom: 10px; color: #aaa; font-size: 12px;">SELECT SPECIALIZATION:</div>
+            <div class="loadout-grid">
+                <div class="card selected" onclick="Game.setClass('breacher', this)">
+                    <div class="card-icon">🔨</div>
+                    <div class="card-name">BREACHER</div>
+                    <div class="card-desc">Heavy Armor. Axe + Shotgun. Breaks walls.</div>
+                </div>
+                <div class="card" onclick="Game.setClass('medic', this)">
+                    <div class="card-icon">💉</div>
+                    <div class="card-name">MEDIC</div>
+                    <div class="card-desc">Fast Speed. Medkit + Hose. Revives squad.</div>
+                </div>
+                <div class="card" onclick="Game.setClass('tech', this)">
+                    <div class="card-icon">📟</div>
+                    <div class="card-name">TECH</div>
+                    <div class="card-desc">Thermal Vision. Scanner + Extinguisher. Sees through smoke.</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 10px; color: #aaa; font-size: 12px;">MISSION BRIEFING:</div>
+            <div style="background:#111; padding:10px; font-size:11px; color:#888; margin-bottom:20px; border:1px solid #333;">
+                TARGET: WAREHOUSE SECTOR 7<br>
+                INTEL: STRUCTURAL INSTABILITY DETECTED.<br>
+                OBJECTIVE: LOCATE AND EXTRACT DATA SERVERS.
+            </div>
+
+            <button class="start-btn" onclick="Game.init()">INITIATE OPERATION</button>
         </div>
     </div>
 
     <script>
-        // === ENGINE & MATH ===
-        const cvs = document.getElementById('game');
+        /**
+         * HAZARD OPS ENGINE v1.0
+         * Optimized for JS13K / Low-end Devices
+         */
+
+        // --- MATH & HELPERS ---
+        const PI2 = Math.PI * 2;
+        const Dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
+        const Clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+        const Rnd = (min, max) => Math.random() * (max - min) + min;
+        const RndInt = (min, max) => Math.floor(Rnd(min, max));
+
+        // --- AUDIO ENGINE (Synthesizer) ---
+        const AudioSys = {
+            ctx: null,
+            init() {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+            },
+            playTone(freq, type, duration, vol = 0.1) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            playNoise(duration) {
+                if (!this.ctx) return;
+                const bufferSize = this.ctx.sampleRate * duration;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = this.ctx.createGain();
+                gain.gain.value = 0.1;
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                noise.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start();
+            },
+            sfx: {
+                step: () => AudioSys.playNoise(0.05),
+                shot: () => { AudioSys.playNoise(0.2); AudioSys.playTone(100, 'sawtooth', 0.1); },
+                beep: () => AudioSys.playTone(800, 'sine', 0.1),
+                alert: () => AudioSys.playTone(150, 'square', 0.3)
+            }
+        };
+
+        // --- INPUT SYSTEM ---
+        const Input = {
+            x: 0, y: 0, active: false,
+            action: false, fire: false
+        };
+
+        // Joystick Logic
+        const joy = document.getElementById('joystick');
+        const knob = document.getElementById('joy-knob');
+        let jStartX, jStartY;
+
+        joy.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const t = e.touches[0];
+            jStartX = t.clientX; jStartY = t.clientY;
+            Input.active = true;
+        }, {passive: false});
+
+        joy.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if (!Input.active) return;
+            const t = e.touches[0];
+            let dx = t.clientX - jStartX;
+            let dy = t.clientY - jStartY;
+            const dist = Math.min(35, Math.hypot(dx, dy));
+            const ang = Math.atan2(dy, dx);
+            
+            Input.x = Math.cos(ang) * (dist/35);
+            Input.y = Math.sin(ang) * (dist/35);
+            
+            knob.style.transform = `translate(calc(-50% + ${Math.cos(ang)*dist}px), calc(-50% + ${Math.sin(ang)*dist}px))`;
+        }, {passive: false});
+
+        const resetInput = () => {
+            Input.active = false; Input.x = 0; Input.y = 0;
+            knob.style.transform = `translate(-50%, -50%)`;
+        };
+        joy.addEventListener('touchend', resetInput);
+        
+        // Keyboard fallback for PC debugging
+        const keys = {};
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if(e.code === 'KeyW') Input.y = -1;
+            if(e.code === 'KeyS') Input.y = 1;
+            if(e.code === 'KeyA') Input.x = -1;
+            if(e.code === 'KeyD') Input.x = 1;
+            if(e.code === 'Space') Input.fire = true;
+            Input.active = true;
+        });
+        window.addEventListener('keyup', e => {
+            keys[e.code] = false;
+            if(!keys['KeyW'] && !keys['KeyS']) Input.y = 0;
+            if(!keys['KeyA'] && !keys['KeyD']) Input.x = 0;
+            if(e.code === 'Space') Input.fire = false;
+        });
+
+        // --- GAME ENGINE ---
+        const cvs = document.getElementById('gameCanvas');
         const ctx = cvs.getContext('2d', { alpha: false });
 
-        let W, H, DPR;
-        const resize = () => {
-            W = window.innerWidth; H = window.innerHeight;
-            DPR = Math.min(2, window.devicePixelRatio);
-            cvs.width = W * DPR; cvs.height = H * DPR;
-            ctx.scale(DPR, DPR);
-        };
-        window.addEventListener('resize', resize);
-        resize();
-
-        // Input State
-        const Input = {
-            move: { x: 0, y: 0, active: false },
-            aim: { x: 0, y: 0 },
-            toolActive: false
+        const CFG = {
+            tileSize: 40,
+            mapW: 40, mapH: 40,
+            viewDist: 300,
+            colors: { wall: '#222', floor: '#111', fire: '#f50', smoke: '#333' }
         };
 
-        // Helper Math
-        const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-        const vecToAngle = (x, y) => Math.atan2(y, x);
-
-        // === MAP GENERATION (Procedural House) ===
-        const TILE_SIZE = 40;
-        const MAP_W = 30;
-        const MAP_H = 30;
-        // 0: Floor, 1: Wall, 2: Door Closed, 3: Door Open, 4: Window, 5: Furniture
-        let MapGrid = []; 
-        let FireGrid = []; // Heat 0-100
-        let SmokeGrid = []; // Density 0-100
-
-        function createMap() {
-            MapGrid = new Array(MAP_W * MAP_H).fill(0);
-            FireGrid = new Float32Array(MAP_W * MAP_H).fill(0);
-            SmokeGrid = new Float32Array(MAP_W * MAP_H).fill(0);
-
-            // Draw Outer Walls
-            for(let x=0; x<MAP_W; x++) {
-                for(let y=0; y<MAP_H; y++) {
-                    if(x===0 || x===MAP_W-1 || y===0 || y===MAP_H-1) MapGrid[y*MAP_W+x] = 1;
-                }
-            }
-
-            // Generate Rooms (BSP-ish simple split)
-            for(let i=0; i<200; i++) {
-                let x = Math.floor(Math.random()*(MAP_W-2))+1;
-                let y = Math.floor(Math.random()*(MAP_H-2))+1;
-                MapGrid[y*MAP_W+x] = 1; // Interior Walls
-            }
-
-            // Clean up isolation and make corridors (Cellular Automata smoothing)
-            // Just simple for demo: Clear center
-            for(let x=5; x<MAP_W-5; x++) {
-                for(let y=5; y<MAP_H-5; y++) {
-                    MapGrid[y*MAP_W+x] = 0;
-                }
-            }
-            // Add Rooms manually-ish
-            addWallRect(5,5, 10,10); // Room 1
-            addDoor(10, 10);
-            addWallRect(15,5, 25,15); // Room 2
-            addDoor(20, 15);
-            addWallRect(5,20, 15,25); // Room 3
-            addDoor(10, 20);
+        // Grid Systems (TypedArrays for performance)
+        const Grid = {
+            map: new Uint8Array(CFG.mapW * CFG.mapH), // 0:Floor, 1:Wall, 2:DoorClsd, 3:DoorOpen, 4:Obj
+            fire: new Uint8Array(CFG.mapW * CFG.mapH), // 0-255 Heat
+            smoke: new Uint8Array(CFG.mapW * CFG.mapH), // 0-255 Density
             
-            // Add Fire Sources
-            FireGrid[7*MAP_W+7] = 100; // Fire in Room 1
-            FireGrid[20*MAP_W+20] = 80; // Fire in Room 2
+            idx(x, y) { return (y | 0) * CFG.mapW + (x | 0); },
+            isSolid(x, y) {
+                if (x < 0 || x >= CFG.mapW || y < 0 || y >= CFG.mapH) return true;
+                const t = this.map[this.idx(x, y)];
+                return t === 1 || t === 2;
+            },
+            set(x, y, val) { this.map[this.idx(x,y)] = val; }
+        };
+
+        // --- RAYCASTING (LIGHTING) ---
+        function castRays(ox, oy, angle) {
+            const rays = [];
+            const fov = Math.PI / 2;
+            const rayCount = 50;
+            const step = fov / rayCount;
+
+            for (let i = -rayCount/2; i < rayCount/2; i++) {
+                const rayAngle = angle + i * step;
+                let dx = Math.cos(rayAngle);
+                let dy = Math.sin(rayAngle);
+                let dist = 0;
+                let hit = false;
+
+                // DDA-ish simplified
+                let cx = ox;
+                let cy = oy;
+
+                while (!hit && dist < CFG.viewDist) {
+                    cx += dx * 10;
+                    cy += dy * 10;
+                    dist += 10;
+
+                    // Check wall collision
+                    const gx = Math.floor(cx / CFG.tileSize);
+                    const gy = Math.floor(cy / CFG.tileSize);
+                    
+                    if (Grid.isSolid(gx, gy)) {
+                        hit = true;
+                    }
+                }
+                rays.push({ x: cx, y: cy });
+            }
+            return rays;
         }
 
-        function addWallRect(x1,y1, x2,y2) {
-            for(let y=y1; y<=y2; y++) {
-                MapGrid[y*MAP_W+x1] = 1;
-                MapGrid[y*MAP_W+x2] = 1;
-            }
-            for(let x=x1; x<=x2; x++) {
-                MapGrid[y1*MAP_W+x] = 1;
-                MapGrid[y2*MAP_W+x] = 1;
+        // --- ENTITIES ---
+        class Entity {
+            constructor(x, y, type) {
+                this.x = x; this.y = y;
+                this.type = type;
+                this.angle = 0;
+                this.radius = 10;
+                this.active = true;
             }
         }
-        function addDoor(x,y) { MapGrid[y*MAP_W+x] = 2; } // 2 = Door Closed
 
-        // === ENTITIES ===
-        const Player = {
-            x: 2 * TILE_SIZE, y: 15 * TILE_SIZE,
-            angle: 0,
-            tool: 'hose', // hose, axe, scanner
-            oxygen: 100,
-            victimsSaved: 0,
-            
+        class Player extends Entity {
+            constructor(x, y, cls) {
+                super(x, y, 'player');
+                this.class = cls;
+                this.hp = 100;
+                this.o2 = 100;
+                this.tool = 0; // 0: Main, 1: Extinguisher/Hose
+                this.flashOn = true;
+            }
             update() {
-                // Movement
-                if(Input.move.active) {
-                    let speed = 3;
-                    let nx = this.x + Input.move.x * speed;
-                    let ny = this.y + Input.move.y * speed;
+                // Move
+                if (Input.x !== 0 || Input.y !== 0) {
+                    let nx = this.x + Input.x * 3;
+                    let ny = this.y + Input.y * 3;
                     
-                    // Collision
-                    if(!isSolid(nx, this.y)) this.x = nx;
-                    if(!isSolid(this.x, ny)) this.y = ny;
+                    // Simple Circle Collision
+                    let gx = Math.floor(nx / CFG.tileSize);
+                    let gy = Math.floor(ny / CFG.tileSize);
                     
-                    this.angle = vecToAngle(Input.move.x, Input.move.y);
+                    if (!Grid.isSolid(gx, Math.floor(this.y / CFG.tileSize))) this.x = nx;
+                    if (!Grid.isSolid(Math.floor(this.x / CFG.tileSize), gy)) this.y = ny;
+
+                    this.angle = Math.atan2(Input.y, Input.x);
+                    
+                    if (Math.random() < 0.1) AudioSys.sfx.step();
                 }
 
-                // Tool Usage
-                if(Input.toolActive) {
-                    if(this.tool === 'hose') {
-                        // Shoot Water
-                        spawnParticle(this.x, this.y, Math.cos(this.angle)*8, Math.sin(this.angle)*8, 'water');
-                    } else if (this.tool === 'axe') {
-                        // Swing logic handled in "Action" but continuous swinging also possible
+                // Interaction
+                if (Input.fire) {
+                    if (this.tool === 0 && this.class === 'breacher') {
+                        // Axe Logic
+                        let ax = this.x + Math.cos(this.angle)*30;
+                        let ay = this.y + Math.sin(this.angle)*30;
+                        let idx = Grid.idx(Math.floor(ax/40), Math.floor(ay/40));
+                        if (Grid.map[idx] === 2 || Grid.map[idx] === 1) { // Break door/wall
+                             Grid.map[idx] = 0;
+                             ParticleSys.spawn(ax, ay, 'debris', 10);
+                             AudioSys.sfx.shot(); // Bang sound
+                        }
+                    } else {
+                        // Extinguisher / Hose
+                        let nx = this.x + Math.cos(this.angle) * 20;
+                        let ny = this.y + Math.sin(this.angle) * 20;
+                        ParticleSys.spawn(nx, ny, 'water', 1, Math.cos(this.angle)*8, Math.sin(this.angle)*8);
+                        AudioSys.playNoise(0.05);
                     }
                 }
 
-                // Oxygen
-                let tileIdx = getTileIdx(this.x, this.y);
-                let smoke = SmokeGrid[tileIdx];
-                let heat = FireGrid[tileIdx];
-                
-                // Damage/Consume
-                if(smoke > 50) this.oxygen -= 0.05;
-                if(heat > 50) this.oxygen -= 0.2; // Heat damage basically
-                
-                // UI Updates
-                document.getElementById('ui-ox').style.width = this.oxygen + '%';
-                document.getElementById('ui-ox').style.background = this.oxygen < 30 ? 'red' : '#00ccff';
-                
-                // Scan Temp
-                let lookX = this.x + Math.cos(this.angle)*40;
-                let lookY = this.y + Math.sin(this.angle)*40;
-                let lookIdx = getTileIdx(lookX, lookY);
-                let temp = Math.floor(20 + FireGrid[lookIdx]*5);
-                
-                if(this.tool === 'scanner') {
-                    // Scanner shows heat through doors
-                    document.getElementById('ui-temp').style.color = temp > 200 ? 'red' : 'white';
-                    document.getElementById('ui-temp').innerText = temp + "°C";
-                } else {
-                    document.getElementById('ui-temp').innerText = "---";
+                // Environmental Damage
+                let idx = Grid.idx(Math.floor(this.x/40), Math.floor(this.y/40));
+                if (Grid.fire[idx] > 50) {
+                    this.hp -= 0.5;
+                    UI.notify("HIGH TEMP WARNING", "red");
                 }
+                if (Grid.smoke[idx] > 100) this.o2 -= 0.1;
+                
+                // UI Sync
+                document.getElementById('ui-o2').style.width = this.o2 + '%';
+                document.getElementById('ui-temp').innerText = Math.floor(20 + Grid.fire[idx]) + '°C';
+                if(Grid.fire[idx]>100) document.getElementById('temp-mod').classList.add('danger');
+                else document.getElementById('temp-mod').classList.remove('danger');
+            }
+        }
 
-                // Prompt Check
-                let t = MapGrid[lookIdx];
-                let prompt = document.getElementById('prompt');
-                if(t === 2) { // Door
-                    prompt.style.display = 'block';
-                    prompt.innerText = this.tool === 'axe' ? "AXE DOOR" : "OPEN DOOR";
-                    prompt.style.color = (FireGrid[lookIdx] > 50) ? 'red' : 'white'; // Danger warning
-                } else if (Victims.some(v => dist(this, v) < 40 && !v.saved)) {
-                    prompt.style.display = 'block';
-                    prompt.innerText = "CARRY VICTIM";
-                    prompt.style.color = "#0f0";
-                } else {
-                    prompt.style.display = 'none';
+        class SquadBot extends Entity {
+            constructor(x, y) {
+                super(x, y, 'bot');
+                this.state = 'follow'; // follow, hold
+            }
+            update(target) {
+                let dist = Dist(this.x, this.y, target.x, target.y);
+                if (this.state === 'follow' && dist > 50) {
+                    let ang = Math.atan2(target.y - this.y, target.x - this.x);
+                    this.x += Math.cos(ang) * 2.5;
+                    this.y += Math.sin(ang) * 2.5;
+                    this.angle = ang;
+                }
+                
+                // Auto Extinguish
+                let gx = Math.floor(this.x/40), gy = Math.floor(this.y/40);
+                if (Grid.fire[Grid.idx(gx, gy)] > 10) {
+                    ParticleSys.spawn(this.x, this.y, 'water', 1, Math.cos(this.angle)*5, Math.sin(this.angle)*5);
+                }
+            }
+        }
+
+        // --- PARTICLE SYSTEM (Object Pooling) ---
+        const ParticleSys = {
+            pool: [],
+            init() { for(let i=0; i<500; i++) this.pool.push({x:0,y:0,vx:0,vy:0,life:0,type:''}); },
+            spawn(x, y, type, count=1, vx=0, vy=0) {
+                for(let i=0; i<count; i++) {
+                    const p = this.pool.find(p => p.life <= 0);
+                    if (!p) return;
+                    p.x = x; p.y = y;
+                    p.vx = (vx || (Math.random()-0.5)*2) + (Math.random()-0.5);
+                    p.vy = (vy || (Math.random()-0.5)*2) + (Math.random()-0.5);
+                    p.type = type;
+                    p.life = 1.0;
                 }
             },
-
-            setTool(t) {
-                this.tool = t;
-                document.querySelectorAll('.tool-icon').forEach(e => e.classList.remove('selected'));
-                document.getElementById('t-'+t).classList.add('selected');
-            },
-            
-            useTool(state) {
-                Input.toolActive = state;
-            },
-
-            action() {
-                let lookX = this.x + Math.cos(this.angle)*40;
-                let lookY = this.y + Math.sin(this.angle)*40;
-                let idx = getTileIdx(lookX, lookY);
-                
-                // Door Interaction
-                if(MapGrid[idx] === 2) {
-                    if(this.tool === 'axe') {
-                        // Smash
-                        MapGrid[idx] = 0; // Destroyed
-                        spawnDebris(lookX, lookY);
-                        // Backdraft Check
-                        if(FireGrid[idx] > 80 && SmokeGrid[idx] > 80) createExplosion(lookX, lookY);
-                    } else {
-                        // Open
-                        // Backdraft Risk High!
-                        if(FireGrid[idx] > 60) {
-                            createExplosion(lookX, lookY);
-                        } else {
-                            MapGrid[idx] = 3; // Open
+            updateAndDraw(ctx, camX, camY) {
+                for (const p of this.pool) {
+                    if (p.life <= 0) continue;
+                    p.x += p.vx; p.y += p.vy;
+                    p.life -= 0.02;
+                    
+                    // Interaction
+                    if (p.type === 'water') {
+                        let idx = Grid.idx(Math.floor(p.x/40), Math.floor(p.y/40));
+                        if (Grid.fire[idx] > 0) {
+                            Grid.fire[idx] -= 5;
+                            p.life = 0;
+                            ParticleSys.spawn(p.x, p.y, 'steam', 1);
                         }
                     }
+
+                    if (p.x < camX || p.x > camX + W || p.y < camY || p.y > camY + H) continue;
+
+                    ctx.globalAlpha = p.life;
+                    if (p.type === 'water') ctx.fillStyle = '#0cf';
+                    else if (p.type === 'fire') ctx.fillStyle = '#f50';
+                    else if (p.type === 'steam') ctx.fillStyle = '#ccc';
+                    else ctx.fillStyle = '#fff';
+                    
+                    ctx.beginPath(); ctx.arc(p.x-camX, p.y-camY, p.type==='steam'?4:2, 0, Math.PI*2); ctx.fill();
                 }
-                
-                // Victim Rescue
-                Victims.forEach(v => {
-                    if(dist(this, v) < 40 && !v.saved) {
-                        v.saved = true;
-                        this.victimsSaved++;
-                        document.getElementById('ui-obj').innerText = this.victimsSaved + "/3";
-                        spawnFloatingText("SAVED!", this.x, this.y, "#0f0");
-                    }
-                });
+                ctx.globalAlpha = 1;
             }
         };
 
-        const Victims = [];
-        function spawnVictim() {
-            // Find random floor
-            let x, y;
-            do {
-                x = Math.floor(Math.random() * MAP_W);
-                y = Math.floor(Math.random() * MAP_H);
-            } while(MapGrid[y*MAP_W+x] !== 0);
-            Victims.push({ x: x*TILE_SIZE + 20, y: y*TILE_SIZE + 20, saved: false });
+        // --- PROCEDURAL GENERATION ---
+        function GenerateMap() {
+            // Initialize
+            Grid.map.fill(1); // All walls
+            Grid.fire.fill(0);
+            Grid.smoke.fill(0);
+
+            // Drunkard's Walk for Rooms
+            let minerX = 20, minerY = 20;
+            let floorCount = 0;
+            
+            while(floorCount < 600) {
+                Grid.set(minerX, minerY, 0); // Floor
+                
+                let dir = Math.floor(Math.random() * 4);
+                if (dir === 0) minerX++;
+                if (dir === 1) minerX--;
+                if (dir === 2) minerY++;
+                if (dir === 3) minerY--;
+                
+                minerX = Clamp(minerX, 2, CFG.mapW-3);
+                minerY = Clamp(minerY, 2, CFG.mapH-3);
+                
+                if (Math.random() < 0.05) {
+                    // Create Room
+                    for(let rx=0; rx<5; rx++) for(let ry=0; ry<5; ry++) Grid.set(minerX+rx, minerY+ry, 0);
+                }
+                floorCount++;
+            }
+
+            // Add Doors & Objectives
+            for (let i=0; i<CFG.mapW*CFG.mapH; i++) {
+                if (Grid.map[i] === 0 && Math.random() < 0.02) {
+                    // Check neighbors
+                    // Simplified logic for demo
+                    if (Math.random() < 0.5) Grid.map[i] = 2; // Door
+                }
+                if (Grid.map[i] === 0 && Math.random() < 0.005) Grid.fire[i] = 200; // Start Fire
+            }
         }
 
-        const Particles = [];
-        function spawnParticle(x, y, vx, vy, type) {
-            Particles.push({ x, y, vx, vy, type, life: 1.0 });
-        }
-        function spawnDebris(x, y) {
-            for(let i=0; i<10; i++) spawnParticle(x, y, (Math.random()-0.5)*5, (Math.random()-0.5)*5, 'debris');
-        }
-        function createExplosion(x, y) {
-            // Push player
-            let dx = Player.x - x; let dy = Player.y - y;
-            let len = Math.hypot(dx, dy);
-            Player.x += (dx/len)*50; Player.y += (dy/len)*50;
-            Player.oxygen -= 10;
-            // Visuals
-            for(let i=0; i<50; i++) spawnParticle(x, y, (Math.random()-0.5)*10, (Math.random()-0.5)*10, 'fire');
-            // Flash
-            let s = document.getElementById('smoke-overlay');
-            s.style.background = 'orange'; s.style.opacity = 0.8;
-            setTimeout(()=> { s.style.background='#fff'; s.style.opacity=0; }, 100);
-            spawnFloatingText("BACKDRAFT!", x, y, "red");
-        }
-        function spawnFloatingText(txt, x, y, col) {
-            // simplified
-        }
+        // --- MAIN GAME OBJECT ---
+        const Game = {
+            active: false,
+            player: null,
+            squad: [],
+            classType: 'breacher',
+            
+            setClass(cls, el) {
+                this.classType = cls;
+                document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+                el.classList.add('selected');
+            },
 
-        // === SYSTEM FUNCTIONS ===
-        function getTileIdx(x, y) {
-            let tx = Math.floor(x / TILE_SIZE);
-            let ty = Math.floor(y / TILE_SIZE);
-            if(tx<0||tx>=MAP_W||ty<0||ty>=MAP_H) return -1;
-            return ty * MAP_W + tx;
-        }
+            init() {
+                AudioSys.init();
+                ParticleSys.init();
+                document.getElementById('menu').classList.add('hidden');
+                
+                GenerateMap();
+                
+                // Spawn Player in valid spot
+                let startX = 20 * 40, startY = 20 * 40;
+                this.player = new Player(startX, startY, this.classType);
+                this.squad.push(new SquadBot(startX - 40, startY));
+                
+                this.active = true;
+                UI.notify("MISSION START");
+                requestAnimationFrame(Loop);
+            },
 
-        function isSolid(x, y) {
-            let idx = getTileIdx(x, y);
-            if(idx === -1) return true;
-            let t = MapGrid[idx];
-            return t === 1 || t === 2; // Wall or Closed Door
-        }
+            toggleCommand() {
+                let bot = this.squad[0];
+                if (bot.state === 'follow') {
+                    bot.state = 'hold';
+                    UI.notify("SQUAD: HOLDING POSITION");
+                    document.getElementById('ui-squad').innerText = "HOLD";
+                } else {
+                    bot.state = 'follow';
+                    UI.notify("SQUAD: FORMING UP");
+                    document.getElementById('ui-squad').innerText = "FOLLOW";
+                }
+            },
 
-        // === RENDERER ===
-        function draw() {
-            // Camera Follow
-            let cx = W/2 - Player.x;
-            let cy = H/2 - Player.y;
+            switchTool() {
+                this.player.tool = this.player.tool === 0 ? 1 : 0;
+                UI.notify("WEAPON SWAPPED");
+            }
+        };
 
+        const UI = {
+            notify(msg, col='#fff') {
+                const div = document.createElement('div');
+                div.className = 'msg';
+                div.innerText = msg;
+                div.style.color = col;
+                document.getElementById('notifications').appendChild(div);
+                setTimeout(() => div.remove(), 1500);
+            }
+        };
+
+        // --- MAIN LOOP ---
+        function Loop() {
+            if (!Game.active) return;
+
+            // Update Physics
+            Game.player.update();
+            Game.squad.forEach(b => b.update(Game.player));
+
+            // Fire Simulation (Cellular Automata)
+            // Optimized: Update random chunks or iterate
+            for (let i=0; i<100; i++) {
+                let idx = Math.floor(Math.random() * (CFG.mapW * CFG.mapH));
+                if (Grid.fire[idx] > 0) {
+                    // Spread
+                    let n = idx + (Math.random() > 0.5 ? 1 : -1);
+                    if (Grid.map[n] !== 1) {
+                        Grid.fire[n] = Math.min(255, Grid.fire[n] + 2);
+                        Grid.smoke[n] = Math.min(255, Grid.smoke[n] + 1);
+                    }
+                    // Particles
+                    if (Math.random() < 0.05) {
+                        let y = Math.floor(idx/CFG.mapW) * 40;
+                        let x = (idx%CFG.mapW) * 40;
+                        ParticleSys.spawn(x+20, y+20, 'fire', 1);
+                    }
+                }
+            }
+
+            // Render
+            // Camera Calc
+            let cx = Game.player.x - W/2;
+            let cy = Game.player.y - H/2;
+            
             // Clear
             ctx.fillStyle = '#050505';
             ctx.fillRect(0, 0, W, H);
 
-            ctx.save();
-            ctx.translate(cx, cy);
+            // Draw Map
+            const startCol = Math.floor(cx / CFG.tileSize);
+            const endCol = startCol + (W / CFG.tileSize) + 1;
+            const startRow = Math.floor(cy / CFG.tileSize);
+            const endRow = startRow + (H / CFG.tileSize) + 1;
 
-            // 1. Draw Floor & Smoke/Fire Simulation
-            for(let y=0; y<MAP_H; y++) {
-                for(let x=0; x<MAP_W; x++) {
-                    let idx = y*MAP_W+x;
-                    let px = x*TILE_SIZE;
-                    let py = y*TILE_SIZE;
+            for (let c = startCol; c <= endCol; c++) {
+                for (let r = startRow; r <= endRow; r++) {
+                    if (c < 0 || c >= CFG.mapW || r < 0 || r >= CFG.mapH) continue;
                     
-                    // Check Visibility (Raycast-ish distance check)
-                    let d = Math.hypot(Player.x - (px+20), Player.y - (py+20));
-                    let visible = d < 300; // Fog of war range
+                    let tile = Grid.map[Grid.idx(c, r)];
+                    let x = Math.round(c * CFG.tileSize - cx);
+                    let y = Math.round(r * CFG.tileSize - cy);
 
-                    if(visible) {
-                        // Floor
+                    if (tile === 1) { // Wall
                         ctx.fillStyle = '#1a1a1a';
-                        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                        ctx.strokeStyle = '#222';
-                        ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
-
-                        // Fire & Smoke Logic Update
-                        if(FireGrid[idx] > 0) {
-                            // Spread
-                            if(Math.random() < 0.01) {
-                                let nIdx = idx + (Math.random()>0.5?1:-1);
-                                if(MapGrid[nIdx]!==1) FireGrid[nIdx] = Math.min(100, FireGrid[nIdx]+10);
-                            }
-                            // Smoke Gen
-                            if(SmokeGrid[idx] < 100) SmokeGrid[idx] += 0.1;
-                            
-                            // Draw Fire
-                            let intensity = FireGrid[idx]/100;
-                            ctx.fillStyle = `rgba(255, ${100-intensity*100}, 0, ${intensity})`;
-                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                        }
-
-                        // Draw Smoke
-                        if(SmokeGrid[idx] > 0) {
-                            let dens = SmokeGrid[idx]/100;
-                            ctx.fillStyle = `rgba(50, 50, 50, ${dens*0.9})`;
-                            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-                        }
-                    } else {
-                        // Fog of war
+                        ctx.fillRect(x, y, CFG.tileSize, CFG.tileSize);
+                        ctx.strokeStyle = '#333';
+                        ctx.strokeRect(x, y, CFG.tileSize, CFG.tileSize);
+                        // 3D Top effect
                         ctx.fillStyle = '#000';
-                        ctx.fillRect(px, py, TILE_SIZE+1, TILE_SIZE+1);
-                    }
-                }
-            }
-
-            // 2. Draw Walls (3D Extrusion Effect)
-            for(let y=0; y<MAP_H; y++) {
-                for(let x=0; x<MAP_W; x++) {
-                    let idx = y*MAP_W+x;
-                    let px = x*TILE_SIZE;
-                    let py = y*TILE_SIZE;
-                    let t = MapGrid[idx];
-                    
-                    // Determine visibility
-                    let d = Math.hypot(Player.x - (px+20), Player.y - (py+20));
-                    if(d > 350) continue;
-
-                    if(t === 1) { // Wall
-                        // Fake 3D: Draw top shifted up
-                        let h = 30;
-                        // Side
-                        ctx.fillStyle = '#111';
-                        ctx.fillRect(px, py-h, TILE_SIZE, TILE_SIZE+h);
-                        // Top
-                        ctx.fillStyle = '#333';
-                        ctx.fillRect(px, py-h, TILE_SIZE, TILE_SIZE);
-                        ctx.strokeStyle = '#555';
-                        ctx.strokeRect(px, py-h, TILE_SIZE, TILE_SIZE);
-                    } else if (t === 2) { // Door Closed
-                        ctx.fillStyle = '#630';
-                        ctx.fillRect(px+2, py+2, TILE_SIZE-4, TILE_SIZE-4);
-                        // Heat glow on door
-                        if(FireGrid[idx] > 50 && Player.tool === 'scanner') {
-                            ctx.strokeStyle = 'red'; ctx.lineWidth = 3;
-                            ctx.strokeRect(px+5, py+5, TILE_SIZE-10, TILE_SIZE-10);
+                        ctx.fillRect(x, y-10, CFG.tileSize, 10);
+                    } else if (tile === 2) { // Door Closed
+                        ctx.fillStyle = '#422';
+                        ctx.fillRect(x+5, y+5, 30, 30);
+                    } else { // Floor
+                        ctx.fillStyle = '#0c0c0c';
+                        ctx.fillRect(x, y, CFG.tileSize, CFG.tileSize);
+                        
+                        // Render Fire Overlay
+                        let fireVal = Grid.fire[Grid.idx(c, r)];
+                        if (fireVal > 0) {
+                            ctx.fillStyle = `rgba(255, 50, 0, ${fireVal/300})`;
+                            ctx.fillRect(x, y, CFG.tileSize, CFG.tileSize);
                         }
                     }
                 }
             }
 
-            // 3. Victims
-            Victims.forEach(v => {
-                if(!v.saved) {
-                    ctx.fillStyle = '#fff';
-                    ctx.beginPath(); ctx.arc(v.x, v.y, 10, 0, Math.PI*2); ctx.fill();
-                    ctx.fillStyle = '#f00'; ctx.font='10px Arial'; ctx.fillText('HELP', v.x-10, v.y-15);
-                }
-            });
+            // Particles
+            ParticleSys.updateAndDraw(ctx, cx, cy);
 
-            // 4. Particles
-            for(let i=Particles.length-1; i>=0; i--) {
-                let p = Particles[i];
-                p.x += p.vx; p.y += p.vy;
-                p.life -= 0.05;
-                
-                if(p.type === 'water') {
-                    ctx.fillStyle = '#00ffff';
-                    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
-                    // Extinguish
-                    let idx = getTileIdx(p.x, p.y);
-                    if(idx !== -1 && FireGrid[idx] > 0) {
-                        FireGrid[idx] -= 2;
-                        p.life = 0; // Die on hit
-                        spawnParticle(p.x, p.y, 0, -1, 'steam');
-                    }
-                } else if (p.type === 'steam') {
-                    ctx.fillStyle = `rgba(200,200,200,${p.life})`;
-                    ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI*2); ctx.fill();
-                } else if (p.type === 'debris') {
-                    ctx.fillStyle = '#853';
-                    ctx.fillRect(p.x, p.y, 4, 4);
-                }
-
-                if(p.life <= 0) Particles.splice(i, 1);
-            }
-
-            // 5. Player (Tactical View)
+            // Dynamic Lighting (Shadows)
+            const rays = castRays(Game.player.x, Game.player.y, Game.player.angle);
+            
+            // Draw Flashlight Cone
             ctx.save();
-            ctx.translate(Player.x, Player.y);
-            ctx.rotate(Player.angle);
-            
-            // Flashlight Cone
-            let grad = ctx.createRadialGradient(0, 0, 10, 0, 0, 200);
-            grad.addColorStop(0, 'rgba(255,255,255,0.3)');
-            grad.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.fillStyle = grad;
-            ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, 200, -0.5, 0.5); ctx.fill();
+            ctx.translate(-cx, -cy);
+            ctx.beginPath();
+            ctx.moveTo(Game.player.x, Game.player.y);
+            for (const p of rays) ctx.lineTo(p.x, p.y);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.fill();
+            ctx.restore();
 
+            // Draw Player
+            const px = Game.player.x - cx;
+            const py = Game.player.y - cy;
+            
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.rotate(Game.player.angle);
+            
             // Body
-            ctx.fillStyle = '#e6b800'; // Bunker gear color
-            ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(0, 0, 10, 0, PI2); ctx.fill();
             // Helmet
-            ctx.fillStyle = '#d00';
-            ctx.fillRect(-5, -8, 10, 16);
-            // Arms/Tool
-            ctx.fillStyle = '#ccc';
-            if(Player.tool === 'hose') ctx.fillRect(5, 5, 15, 5);
-            if(Player.tool === 'axe') { ctx.fillStyle='#633'; ctx.fillRect(5, -15, 20, 5); ctx.fillStyle='#888'; ctx.fillRect(20, -20, 5, 15); }
-
+            ctx.fillStyle = '#e63946';
+            ctx.fillRect(-5, -5, 10, 10);
+            // Tool
+            ctx.fillStyle = '#888';
+            ctx.fillRect(5, 2, 15, 4);
+            
             ctx.restore();
 
-            ctx.restore();
-        }
-
-        const Game = {
-            init() {
-                createMap();
-                for(let i=0; i<3; i++) spawnVictim();
-                document.getElementById('menu').classList.add('hidden');
-                updateLoop();
+            // Draw Squad
+            for(let bot of Game.squad) {
+                ctx.save();
+                ctx.translate(bot.x - cx, bot.y - cy);
+                ctx.rotate(bot.angle);
+                ctx.fillStyle = '#457b9d';
+                ctx.beginPath(); ctx.arc(0, 0, 10, 0, PI2); ctx.fill();
+                ctx.restore();
             }
-        };
 
-        function updateLoop() {
-            Player.update();
-            draw();
-            requestAnimationFrame(updateLoop);
+            requestAnimationFrame(Loop);
         }
 
-        // === JOYSTICK ===
-        const stick = document.getElementById('stick-move');
-        const knob = document.getElementById('knob-move');
-        let startX, startY;
-
-        stick.addEventListener('touchstart', e => {
-            e.preventDefault();
-            let t = e.touches[0];
-            startX = t.clientX; startY = t.clientY;
-            Input.move.active = true;
-        });
-        stick.addEventListener('touchmove', e => {
-            e.preventDefault();
-            let t = e.touches[0];
-            let dx = t.clientX - startX;
-            let dy = t.clientY - startY;
-            let dist = Math.min(35, Math.hypot(dx, dy));
-            let ang = Math.atan2(dy, dx);
-            
-            knob.style.transform = `translate(calc(-50% + ${Math.cos(ang)*dist}px), calc(-50% + ${Math.sin(ang)*dist}px))`;
-            
-            Input.move.x = Math.cos(ang);
-            Input.move.y = Math.sin(ang);
-        });
-        stick.addEventListener('touchend', e => {
-            Input.move.active = false;
-            Input.move.x = 0; Input.move.y = 0;
-            knob.style.transform = `translate(-50%, -50%)`;
-        });
-
-        // Init
+        // --- STARTUP ---
         if(window.Telegram && window.Telegram.WebApp) window.Telegram.WebApp.ready();
 
     </script>
