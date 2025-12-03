@@ -1,574 +1,69 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>Firefighter Simulator</title>
-<style>
-  :root{
-    --bg:#0b1220; --panel:#0f1724; --accent:#ff6b35; --water:#4fc3f7; --text:#e6eef8;
-  }
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,var(--bg),#07101a);color:var(--text);-webkit-tap-highlight-color:transparent;}
-  #gameWrap{position:relative;height:100vh;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;overflow:hidden;}
-  header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);backdrop-filter:blur(4px);}
-  header h1{font-size:16px;margin:0;font-weight:600;letter-spacing:0.2px}
-  .hud{display:flex;gap:8px;align-items:center}
-  .stat{background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:8px;font-size:13px}
-  #canvas{display:block;width:100%;height:calc(100vh - 120px);background:linear-gradient(180deg,#0b1a1f,#07202a);touch-action:none}
-  footer{display:flex;gap:8px;padding:10px;background:linear-gradient(0deg,rgba(255,255,255,0.02),transparent);align-items:center;justify-content:space-between}
-  .controls{display:flex;gap:8px;align-items:center}
-  button{background:var(--panel);border:1px solid rgba(255,255,255,0.03);color:var(--text);padding:8px 10px;border-radius:8px;font-size:14px}
-  .panel{position:absolute;right:12px;top:70px;width:220px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:12px;padding:10px;box-shadow:0 6px 18px rgba(0,0,0,0.5)}
-  .panel h3{margin:0 0 8px 0;font-size:14px}
-  .bar{height:10px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden}
-  .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--water),#2aa0d6)}
-  .shop{display:flex;flex-direction:column;gap:8px}
-  .shop button{display:flex;justify-content:space-between;align-items:center}
-  .bigOverlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(180deg,rgba(0,0,0,0.6),rgba(0,0,0,0.4));padding:18px;border-radius:12px;min-width:260px;text-align:center}
-  .hidden{display:none}
-  .joystick{position:fixed;left:14px;bottom:14px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;touch-action:none}
-  .stick{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.06);transform:translate(0,0);transition:transform 0.02s linear}
-  .btnFire{position:fixed;right:14px;bottom:24px;width:72px;height:72px;border-radius:50%;background:linear-gradient(180deg,var(--accent),#ff4a1a);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:18px;box-shadow:0 8px 20px rgba(255,107,53,0.18)}
-  small{color:rgba(230,238,248,0.6)}
-  .footer-left{display:flex;gap:8px;align-items:center}
-  @media(min-width:900px){
-    #canvas{height:calc(100vh - 140px)}
-    .joystick{display:none}
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FireHero Simulator</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Подключаем скрипт Telegram -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-<div id="gameWrap">
-  <header>
-    <h1>Firefighter Simulator</h1>
-    <div class="hud">
-      <div class="stat">Wave <span id="wave">0</span></div>
-      <div class="stat">Score <span id="score">0</span></div>
-      <div class="stat">Time <span id="timer">00:00</span></div>
+    <div class="app-container">
+        <!-- Верхняя панель -->
+        <header class="header">
+            <div class="stats-box">
+                <span>💰 <span id="coins">0</span></span>
+                <span>🔥 <span id="burned">0%</span></span>
+            </div>
+            <div class="level-box">Ур. <span id="level">1</span></div>
+        </header>
+
+        <!-- Игровое поле -->
+        <div id="city-grid" class="city-grid">
+            <!-- Ячейки генерируются через JS -->
+        </div>
+
+        <!-- Управление водой -->
+        <div class="water-control">
+            <div class="water-tank-bg">
+                <div id="water-level" class="water-level" style="width: 100%;"></div>
+            </div>
+            <div class="water-text">ВОДА (Нажми для пополнения)</div>
+        </div>
+
+        <!-- Меню магазина -->
+        <button id="shop-btn" class="main-btn">🛒 Магазин</button>
+
+        <!-- Модальное окно магазина -->
+        <div id="shop-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>Магазин Депо</h2>
+                <div class="upgrade-item" onclick="game.buyUpgrade('hose')">
+                    <div class="icon">💦</div>
+                    <div class="info">
+                        <h4>Мощный напор</h4>
+                        <p>Цена: <span id="cost-hose">50</span></p>
+                    </div>
+                </div>
+                <div class="upgrade-item" onclick="game.buyUpgrade('tank')">
+                    <div class="icon">🛢️</div>
+                    <div class="info">
+                        <h4>Бак +20%</h4>
+                        <p>Цена: <span id="cost-tank">100</span></p>
+                    </div>
+                </div>
+                <div class="upgrade-item" onclick="game.buyUpgrade('auto')">
+                    <div class="icon">🚁</div>
+                    <div class="info">
+                        <h4>Пожарный дрон</h4>
+                        <p>Цена: <span id="cost-auto">500</span></p>
+                    </div>
+                </div>
+                <button id="close-shop" class="close-btn">Закрыть</button>
+            </div>
+        </div>
     </div>
-  </header>
-
-  <canvas id="canvas"></canvas>
-
-  <div class="panel" id="panel">
-    <h3>Параметры</h3>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-      <div style="flex:1">
-        <small>Бак</small>
-        <div class="bar" style="margin-top:6px"><i id="waterBar" style="width:100%"></i></div>
-      </div>
-      <div style="width:56px;text-align:center"><small id="waterText">100%</small></div>
-    </div>
-    <div class="shop">
-      <button id="upgradeTank">Увеличить бак - 200 очков</button>
-      <button id="upgradePower">Усилить струю - 300 очков</button>
-      <button id="upgradeSpeed">Ускорить бег - 250 очков</button>
-    </div>
-  </div>
-
-  <div class="bigOverlay hidden" id="overlay">
-    <h2 id="overlayTitle">Готов</h2>
-    <p id="overlayText">Нажми Start чтобы начать волну</p>
-    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
-      <button id="startBtn">Start</button>
-      <button id="resetBtn">Сброс</button>
-    </div>
-    <div style="margin-top:10px;text-align:left">
-      <small>Лучшие рекорды</small>
-      <ol id="leaderboard" style="padding-left:18px;margin:6px 0 0 0"></ol>
-    </div>
-  </div>
-
-  <div class="joystick" id="joystick">
-    <div class="stick" id="stick"></div>
-  </div>
-
-  <button class="btnFire" id="fireBtn">WATER</button>
-
-  <footer>
-    <div class="footer-left">
-      <div><small>Миссия</small><div style="font-weight:600" id="mission">Потуши все очаги</div></div>
-    </div>
-    <div class="controls">
-      <button id="pauseBtn">Пауза</button>
-      <button id="helpBtn">Помощь</button>
-    </div>
-  </footer>
-</div>
-
-<script>
-/* Firefighter Simulator MiniApp
-   Single-file HTML/CSS/JS game optimized for mobile and Telegram WebView.
-   Author: Copilot-style assistant
-*/
-
-/* ====== Core settings ====== */
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d', { alpha: false });
-let W = 0, H = 0;
-function resize(){
-  W = canvas.width = Math.floor(window.innerWidth * devicePixelRatio);
-  H = canvas.height = Math.floor((window.innerHeight - 120) * devicePixelRatio);
-  canvas.style.width = window.innerWidth + 'px';
-  canvas.style.height = (window.innerHeight - 120) + 'px';
-  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-}
-window.addEventListener('resize', resize);
-resize();
-
-/* ====== Game state ====== */
-let running = false;
-let paused = false;
-let lastTime = 0;
-let accum = 0;
-let dt = 1/60;
-let wave = 0;
-let score = 0;
-let timeLeft = 180; // seconds per wave
-let fires = [];
-let particles = [];
-let player = {
-  x: 150, y: 200, r: 18,
-  speed: 140, // px/s
-  dirX:0, dirY:0,
-  tankMax:100, tank:100,
-  power:1.0,
-  spray:false
-};
-const ui = {
-  wave: document.getElementById('wave'),
-  score: document.getElementById('score'),
-  timer: document.getElementById('timer'),
-  waterBar: document.getElementById('waterBar'),
-  waterText: document.getElementById('waterText'),
-  overlay: document.getElementById('overlay'),
-  overlayTitle: document.getElementById('overlayTitle'),
-  overlayText: document.getElementById('overlayText'),
-  startBtn: document.getElementById('startBtn'),
-  resetBtn: document.getElementById('resetBtn'),
-  leaderboard: document.getElementById('leaderboard'),
-  upgradeTank: document.getElementById('upgradeTank'),
-  upgradePower: document.getElementById('upgradePower'),
-  upgradeSpeed: document.getElementById('upgradeSpeed'),
-  pauseBtn: document.getElementById('pauseBtn'),
-  helpBtn: document.getElementById('helpBtn'),
-  mission: document.getElementById('mission')
-};
-
-/* ====== Utilities ====== */
-function rand(min,max){return Math.random()*(max-min)+min;}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-function formatTime(s){ const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;}
-
-/* ====== Fire logic ====== */
-class Fire {
-  constructor(x,y,size=1){
-    this.x = x; this.y = y;
-    this.size = size; // 0.5 small, 1 medium, 2 big
-    this.health = 100 * size;
-    this.spreadTimer = rand(2,6);
-    this.alive = true;
-  }
-  update(dt){
-    if(!this.alive) return;
-    this.spreadTimer -= dt;
-    if(this.spreadTimer <= 0){
-      this.spreadTimer = rand(3,8) / Math.sqrt(wave+1);
-      // chance to spawn new fire nearby
-      if(Math.random() < 0.6){
-        const angle = Math.random()*Math.PI*2;
-        const dist = rand(40,120);
-        const nx = clamp(this.x + Math.cos(angle)*dist, 40, window.innerWidth-40);
-        const ny = clamp(this.y + Math.sin(angle)*dist, 40, (window.innerHeight-120)-40);
-        fires.push(new Fire(nx, ny, Math.random()<0.6?0.6:1));
-      }
-    }
-    if(this.health <= 0) this.alive = false;
-  }
-  draw(ctx){
-    if(!this.alive) return;
-    const s = this.size * 18;
-    // flicker
-    const t = Date.now()/120;
-    const glow = 0.6 + Math.sin(t + this.x*0.01)*0.4;
-    // core
-    const grd = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, s*3);
-    grd.addColorStop(0, `rgba(255,${120+Math.floor(80*this.size)},0,${0.9*glow})`);
-    grd.addColorStop(0.5, `rgba(255,${80+Math.floor(60*this.size)},0,${0.35*glow})`);
-    grd.addColorStop(1, `rgba(40,20,10,0)`);
-    ctx.fillStyle = grd;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, s*3, 0, Math.PI*2);
-    ctx.fill();
-    // flame shape
-    ctx.fillStyle = `rgba(255,${180 - this.size*40},0,${0.9})`;
-    ctx.beginPath();
-    ctx.moveTo(this.x, this.y - s*1.2);
-    ctx.bezierCurveTo(this.x + s*1.2, this.y - s*1.6, this.x + s*0.6, this.y + s*1.2, this.x, this.y + s*1.6);
-    ctx.bezierCurveTo(this.x - s*0.6, this.y + s*1.2, this.x - s*1.2, this.y - s*1.6, this.x, this.y - s*1.2);
-    ctx.fill();
-    // smoke
-    ctx.fillStyle = `rgba(80,80,80,${0.12*this.size})`;
-    ctx.beginPath();
-    ctx.ellipse(this.x + 10, this.y - s*2.2, s*1.2, s*0.6, -0.4, 0, Math.PI*2);
-    ctx.fill();
-  }
-}
-
-/* ====== Particles for water and splash ====== */
-class Particle {
-  constructor(x,y,vx,vy,life,color,size){
-    this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.life=life;this.max=life;this.color=color;this.size=size;
-  }
-  update(dt){
-    this.life -= dt;
-    this.vy += 300*dt; // gravity
-    this.x += this.vx*dt; this.y += this.vy*dt;
-  }
-  draw(ctx){
-    if(this.life<=0) return;
-    ctx.globalAlpha = clamp(this.life/this.max,0,1);
-    ctx.fillStyle = this.color;
-    ctx.beginPath();
-    ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  }
-}
-
-/* ====== Input handling ====== */
-let keys = {};
-window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(e.key===' '){ e.preventDefault(); }});
-window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
-
-let pointer = {x:0,y:0,down:false};
-canvas.addEventListener('pointerdown', e => { pointer.down = true; pointer.x = e.clientX; pointer.y = e.clientY; });
-canvas.addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; });
-canvas.addEventListener('pointerup', e => { pointer.down = false; });
-
-/* Joystick for mobile */
-const joystick = document.getElementById('joystick');
-const stick = document.getElementById('stick');
-let joyCenter = {x:0,y:0}, joyActive=false;
-function updateJoyPos(){
-  const rect = joystick.getBoundingClientRect();
-  joyCenter.x = rect.left + rect.width/2;
-  joyCenter.y = rect.top + rect.height/2;
-}
-updateJoyPos();
-window.addEventListener('resize', updateJoyPos);
-stick.addEventListener('pointerdown', e => { joyActive = true; stick.setPointerCapture(e.pointerId); });
-window.addEventListener('pointerup', e => { joyActive = false; stick.style.transform = 'translate(0,0)'; player.dirX=0; player.dirY=0; });
-window.addEventListener('pointermove', e => {
-  if(!joyActive) return;
-  const dx = e.clientX - joyCenter.x;
-  const dy = e.clientY - joyCenter.y;
-  const max = 36;
-  const nx = clamp(dx, -max, max);
-  const ny = clamp(dy, -max, max);
-  stick.style.transform = `translate(${nx}px,${ny}px)`;
-  player.dirX = nx / max;
-  player.dirY = ny / max;
-});
-
-/* Fire button */
-const fireBtn = document.getElementById('fireBtn');
-fireBtn.addEventListener('pointerdown', ()=> player.spray = true);
-fireBtn.addEventListener('pointerup', ()=> player.spray = false);
-fireBtn.addEventListener('pointercancel', ()=> player.spray = false);
-
-/* UI buttons */
-ui.startBtn.addEventListener('click', startWave);
-ui.resetBtn.addEventListener('click', resetGame);
-ui.pauseBtn.addEventListener('click', ()=>{ paused = !paused; ui.pauseBtn.textContent = paused ? 'Возобновить' : 'Пауза'; });
-ui.helpBtn.addEventListener('click', ()=>{ alert('Управление: джойстик или WASD/стрелки. Нажми WATER чтобы поливать. Покупай апгрейды за очки.'); });
-
-ui.upgradeTank.addEventListener('click', ()=> buyUpgrade('tank',200));
-ui.upgradePower.addEventListener('click', ()=> buyUpgrade('power',300));
-ui.upgradeSpeed.addEventListener('click', ()=> buyUpgrade('speed',250));
-
-/* ====== Game flow ====== */
-function startWave(){
-  if(running) return;
-  running = true; paused = false;
-  wave++;
-  fires = [];
-  particles = [];
-  timeLeft = 60 + Math.min(240, wave*15);
-  spawnInitialFires();
-  ui.overlay.classList.add('hidden');
-  lastTime = performance.now();
-  loop(lastTime);
-}
-function resetGame(){
-  running = false; paused = false; wave = 0; score = 0;
-  player.tankMax = 100; player.tank = 100; player.power = 1.0; player.speed = 140;
-  ui.overlayTitle.textContent = 'Готов';
-  ui.overlayText.textContent = 'Нажми Start чтобы начать волну';
-  ui.overlay.classList.remove('hidden');
-  updateUI();
-  showLeaderboard();
-}
-function spawnInitialFires(){
-  const count = 2 + Math.floor(wave * 1.2);
-  for(let i=0;i<count;i++){
-    const x = rand(80, window.innerWidth-80);
-    const y = rand(80, (window.innerHeight-120)-80);
-    fires.push(new Fire(x,y, Math.random()<0.6?0.6:1));
-  }
-}
-
-/* ====== Upgrades and scoring ====== */
-function buyUpgrade(type,cost){
-  if(score < cost) { alert('Недостаточно очков'); return; }
-  score -= cost;
-  if(type==='tank'){ player.tankMax = Math.round(player.tankMax * 1.5); player.tank = player.tankMax; }
-  if(type==='power'){ player.power = +(player.power + 0.6).toFixed(2); }
-  if(type==='speed'){ player.speed = Math.round(player.speed * 1.25); }
-  updateUI();
-}
-
-/* ====== Leaderboard localStorage ====== */
-function saveScore(){
-  const key = 'ffsim_leaderboard_v1';
-  const data = JSON.parse(localStorage.getItem(key) || '[]');
-  data.push({score, wave, date:Date.now()});
-  data.sort((a,b)=>b.score-a.score);
-  localStorage.setItem(key, JSON.stringify(data.slice(0,10)));
-}
-function showLeaderboard(){
-  const key = 'ffsim_leaderboard_v1';
-  const data = JSON.parse(localStorage.getItem(key) || '[]');
-  ui.leaderboard.innerHTML = '';
-  if(data.length===0){ ui.leaderboard.innerHTML = '<li>Пусто</li>'; return; }
-  data.slice(0,5).forEach(d=>{
-    const li = document.createElement('li');
-    const dt = new Date(d.date);
-    li.textContent = `${d.score} очк — волна ${d.wave} — ${dt.toLocaleDateString()}`;
-    ui.leaderboard.appendChild(li);
-  });
-}
-
-/* ====== Sound simple ====== */
-function beep(freq, time=0.08, type='sine'){
-  try{
-    const ac = window.AudioContext || window.webkitAudioContext;
-    if(!beep.ctx) beep.ctx = new ac();
-    const ctx = beep.ctx;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = type; o.frequency.value = freq;
-    g.gain.value = 0.0001;
-    o.connect(g); g.connect(ctx.destination);
-    o.start();
-    g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + time);
-    o.stop(ctx.currentTime + time + 0.02);
-  }catch(e){}
-}
-
-/* ====== Main loop ====== */
-function loop(now){
-  if(!running) return;
-  if(paused){ lastTime = now; requestAnimationFrame(loop); return; }
-  const delta = Math.min(0.05, (now - lastTime)/1000);
-  lastTime = now;
-  update(delta);
-  render();
-  requestAnimationFrame(loop);
-}
-
-/* ====== Update ====== */
-function update(dt){
-  // input movement
-  let mx = 0, my = 0;
-  if(keys['arrowup']||keys['w']) my -= 1;
-  if(keys['arrowdown']||keys['s']) my += 1;
-  if(keys['arrowleft']||keys['a']) mx -= 1;
-  if(keys['arrowright']||keys['d']) mx += 1;
-  if(mx!==0 || my!==0){
-    const len = Math.hypot(mx,my) || 1;
-    player.dirX = mx/len; player.dirY = my/len;
-  } else {
-    // if joystick not active, keep previous dir
-    if(!joyActive){ player.dirX = 0; player.dirY = 0; }
-  }
-
-  // move player
-  player.x += player.dirX * player.speed * dt;
-  player.y += player.dirY * player.speed * dt;
-  player.x = clamp(player.x, 30, window.innerWidth - 30);
-  player.y = clamp(player.y, 30, (window.innerHeight-120) - 30);
-
-  // spray control: pointer on right half or fire button or key
-  const sprayKey = keys[' '] || keys['k'] || keys['f'];
-  const pointerSpray = pointer.down && pointer.x > window.innerWidth/2;
-  player.spray = player.spray || sprayKey || pointerSpray;
-
-  // water consumption and particle generation
-  if(player.spray && player.tank > 0){
-    // aim direction
-    let aimX = pointer.x || player.x + 1;
-    let aimY = pointer.y || player.y;
-    // if using mouse on desktop, compute aim from mouse; else aim forward
-    if(pointer.x && pointer.y){
-      aimX = pointer.x; aimY = pointer.y;
-    } else {
-      aimX = player.x + 80;
-      aimY = player.y;
-    }
-    const angle = Math.atan2(aimY - player.y, aimX - player.x);
-    const spread = 0.25; // radians
-    const speed = 600 * player.power;
-    // create particles
-    for(let i=0;i<6;i++){
-      const a = angle + rand(-spread, spread);
-      const vx = Math.cos(a) * speed * rand(0.8,1.1);
-      const vy = Math.sin(a) * speed * rand(0.8,1.1);
-      particles.push(new Particle(player.x + Math.cos(a)*20, player.y + Math.sin(a)*20, vx, vy, 0.6, 'rgba(95,190,255,0.9)', 2));
-    }
-    // consume water
-    player.tank -= 12 * dt * player.power;
-    if(player.tank < 0) player.tank = 0;
-    // sound
-    if(Math.random() < 0.08) beep(900, 0.03, 'sine');
-  } else {
-    // passive refill slowly when not spraying
-    player.tank += 8 * dt;
-    player.tank = clamp(player.tank, 0, player.tankMax);
-  }
-
-  // update fires
-  fires.forEach(f => f.update(dt));
-  // water hits fire detection
-  for(let i = particles.length-1; i>=0; i--){
-    const p = particles[i];
-    p.update(dt);
-    // check collision with fires
-    for(let j=0;j<fires.length;j++){
-      const f = fires[j];
-      if(!f.alive) continue;
-      const dx = p.x - f.x, dy = p.y - f.y;
-      const dist = Math.hypot(dx,dy);
-      const effRadius = f.size * 30;
-      if(dist < effRadius){
-        // apply damage
-        const dmg = 18 * dt * player.power;
-        f.health -= dmg;
-        // create splash
-        if(Math.random() < 0.2){
-          for(let k=0;k<6;k++){
-            particles.push(new Particle(p.x, p.y, rand(-80,80), rand(-80, -20), 0.4, 'rgba(180,220,255,0.8)', 1.5));
-          }
-        }
-        // score
-        score += Math.floor(dmg * 0.6);
-        // extinguish
-        if(f.health <= 0){
-          f.alive = false;
-          score += Math.floor(120 * f.size);
-          beep(1200, 0.06, 'triangle');
-        }
-        // remove particle
-        particles.splice(i,1);
-        break;
-      }
-    }
-    // remove if life ended or out of bounds
-    if(p.life <= 0 || p.y > window.innerHeight) particles.splice(i,1);
-  }
-
-  // update particles
-  for(let i=particles.length-1;i>=0;i--){
-    if(particles[i].life <= 0) particles.splice(i,1);
-  }
-
-  // remove dead fires
-  fires = fires.filter(f => f.alive);
-
-  // wave end conditions
-  timeLeft -= dt;
-  if(timeLeft <= 0 || fires.length === 0){
-    // wave finished
-    running = false;
-    ui.overlay.classList.remove('hidden');
-    ui.overlayTitle.textContent = fires.length === 0 ? 'Волна пройдена' : 'Время вышло';
-    ui.overlayText.textContent = `Очки ${score} — волна ${wave}`;
-    saveScore();
-    showLeaderboard();
-    beep(600, 0.12, 'sine');
-  }
-
-  updateUI();
-}
-
-/* ====== Render ====== */
-function render(){
-  // clear
-  ctx.fillStyle = '#07121a';
-  ctx.fillRect(0,0,window.innerWidth, window.innerHeight);
-
-  // ground grid
-  ctx.save();
-  ctx.globalAlpha = 0.06;
-  ctx.strokeStyle = '#0b2a36';
-  for(let x=0;x<window.innerWidth;x+=40){
-    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,window.innerHeight); ctx.stroke();
-  }
-  for(let y=0;y<window.innerHeight;y+=40){
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(window.innerWidth,y); ctx.stroke();
-  }
-  ctx.restore();
-
-  // draw fires
-  fires.forEach(f => f.draw(ctx));
-
-  // draw particles
-  particles.forEach(p => p.draw(ctx));
-
-  // draw player
-  ctx.save();
-  ctx.translate(player.x, player.y);
-  // body
-  ctx.fillStyle = '#2b6b8f';
-  ctx.beginPath(); ctx.arc(0,0,player.r,0,Math.PI*2); ctx.fill();
-  // helmet
-  ctx.fillStyle = '#ffb74d';
-  ctx.beginPath(); ctx.ellipse(0,-8,player.r*1.1,player.r*0.6,0,0,Math.PI*2); ctx.fill();
-  // backpack
-  ctx.fillStyle = '#2a2f36';
-  ctx.fillRect(-player.r-6, -player.r/2, 8, player.r+6);
-  // hose nozzle direction indicator
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-  const aimX = (pointer.x || player.x + 1) - player.x;
-  const aimY = (pointer.y || player.y) - player.y;
-  const ang = Math.atan2(aimY, aimX);
-  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(ang)*28, Math.sin(ang)*28); ctx.stroke();
-  ctx.restore();
-
-  // HUD overlays drawn by DOM
-}
-
-/* ====== UI update ====== */
-function updateUI(){
-  ui.wave.textContent = wave;
-  ui.score.textContent = score;
-  ui.timer.textContent = formatTime(Math.max(0, timeLeft));
-  const pct = Math.round((player.tank / player.tankMax) * 100);
-  ui.waterBar.style.width = pct + '%';
-  ui.waterText.textContent = pct + '%';
-  ui.mission.textContent = `Потуши все очаги (${fires.length} осталось)`;
-}
-
-/* ====== Init ====== */
-resetGame();
-showLeaderboard();
-
-/* Auto-start small demo if user taps canvas quickly */
-canvas.addEventListener('dblclick', ()=>{ if(!running) startWave(); });
-
-/* Prevent context menu on long press */
-window.addEventListener('contextmenu', e => e.preventDefault());
-</script>
+    <script src="script.js"></script>
 </body>
 </html>
