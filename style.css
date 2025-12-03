@@ -1,0 +1,188 @@
+:root {
+    --bg-color: #1c1c1e;
+    --grid-bg: #2c2c2e;
+    --fire-color: #ff453a;
+    --water-color: #0a84ff;
+    --text-color: #ffffff;
+    --accent: #ffd60a;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    overflow: hidden; /* Блокируем скролл */
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.stats-box span { margin-right: 15px; }
+
+/* Grid */
+.city-grid {
+    flex-grow: 1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-gap: 5px;
+    background: var(--grid-bg);
+    border-radius: 12px;
+    padding: 5px;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.cell {
+    background-color: #3a3a3c;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.1s;
+    position: relative;
+    overflow: hidden;
+}
+
+.cell.fire {
+    background-color: #5e1a1a;
+    animation: shake 0.5s infinite;
+}
+
+.cell.fire::after {
+    content: '🔥';
+    font-size: 28px;
+    animation: flame 0.8s infinite alternate;
+}
+
+.cell.house::after { content: '🏢'; opacity: 0.5; filter: grayscale(100%); }
+.cell.house.saved::after { content: '🏢'; opacity: 1; filter: none; }
+
+/* Water Control */
+.water-control {
+    margin-bottom: 15px;
+    cursor: pointer;
+}
+
+.water-tank-bg {
+    height: 20px;
+    background: #3a3a3c;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 2px solid #555;
+}
+
+.water-level {
+    height: 100%;
+    background: var(--water-color);
+    transition: width 0.2s;
+    box-shadow: 0 0 10px var(--water-color);
+}
+
+.water-text {
+    text-align: center;
+    font-size: 12px;
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+/* Buttons */
+.main-btn {
+    background-color: var(--accent);
+    color: #000;
+    border: none;
+    padding: 15px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+}
+
+.main-btn:active { transform: scale(0.98); }
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    backdrop-filter: blur(5px);
+}
+
+.modal.hidden { display: none; }
+
+.modal-content {
+    background: #2c2c2e;
+    padding: 20px;
+    border-radius: 16px;
+    width: 85%;
+    max-width: 350px;
+}
+
+.upgrade-item {
+    display: flex;
+    align-items: center;
+    background: #3a3a3c;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.upgrade-item:active { background: #48484a; }
+.upgrade-item .icon { font-size: 24px; margin-right: 15px; }
+.upgrade-item h4 { margin: 0; font-size: 14px; }
+.upgrade-item p { margin: 0; font-size: 12px; color: var(--accent); }
+
+.close-btn {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    background: transparent;
+    border: 1px solid #555;
+    color: #fff;
+    border-radius: 8px;
+}
+
+/* Animations */
+@keyframes shake {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+    20% { transform: translate(-3px, 0px) rotate(1deg); }
+    30% { transform: translate(3px, 2px) rotate(0deg); }
+    40% { transform: translate(1px, -1px) rotate(1deg); }
+    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+    60% { transform: translate(-3px, 1px) rotate(0deg); }
+    70% { transform: translate(3px, 1px) rotate(-1deg); }
+    80% { transform: translate(-1px, -1px) rotate(1deg); }
+    90% { transform: translate(1px, 2px) rotate(0deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+
+@keyframes flame {
+    from { opacity: 0.8; transform: scale(0.9); filter: hue-rotate(0deg); }
+    to { opacity: 1; transform: scale(1.1); filter: hue-rotate(-10deg); }
+}
