@@ -3,67 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FireHero Simulator</title>
+    <title>FireHero: Red Alert</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Подключаем скрипт Telegram -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Верхняя панель -->
-        <header class="header">
-            <div class="stats-box">
-                <span>💰 <span id="coins">0</span></span>
-                <span>🔥 <span id="burned">0%</span></span>
+    <!-- Экран загрузки -->
+    <div id="loader" class="loader-screen">
+        <div class="loader-icon">🚒</div>
+        <div class="loader-bar"><div class="loader-progress"></div></div>
+        <p>Загрузка ресурсов...</p>
+    </div>
+
+    <!-- Эффекты (частицы) -->
+    <canvas id="fx-canvas"></canvas>
+
+    <div class="app-container hidden" id="app">
+        <!-- Верхний HUD -->
+        <header class="top-hud">
+            <div class="resource-pill">
+                <span class="icon">🪙</span>
+                <span id="coins">0</span>
             </div>
-            <div class="level-box">Ур. <span id="level">1</span></div>
+            <div class="resource-pill danger">
+                <span class="icon">🔥</span>
+                <span id="burned">0%</span>
+            </div>
         </header>
 
-        <!-- Игровое поле -->
-        <div id="city-grid" class="city-grid">
-            <!-- Ячейки генерируются через JS -->
-        </div>
+        <!-- Основной контент (Страницы) -->
+        <main class="content-area">
+            
+            <!-- ТАБ 1: ИГРА -->
+            <section id="tab-game" class="tab-content active">
+                <div class="level-info">Район: <b id="district-name">Центр</b> (Ур. <span id="level">1</span>)</div>
+                
+                <div id="city-grid" class="city-grid"></div>
 
-        <!-- Управление водой -->
-        <div class="water-control">
-            <div class="water-tank-bg">
-                <div id="water-level" class="water-level" style="width: 100%;"></div>
-            </div>
-            <div class="water-text">ВОДА (Нажми для пополнения)</div>
-        </div>
+                <div class="water-control-container">
+                    <div class="water-info">
+                        <span>💧 Вода</span>
+                        <span id="water-text">100/100</span>
+                    </div>
+                    <div class="water-track" id="water-btn">
+                        <div class="water-fill" id="water-fill"></div>
+                        <div class="water-glare"></div>
+                    </div>
+                    <div class="hint">Тапай для перезарядки</div>
+                </div>
+            </section>
 
-        <!-- Меню магазина -->
-        <button id="shop-btn" class="main-btn">🛒 Магазин</button>
+            <!-- ТАБ 2: МАГАЗИН -->
+            <section id="tab-shop" class="tab-content">
+                <h2>Магазин оборудования</h2>
+                <div class="shop-list" id="shop-list">
+                    <!-- Генерируется JS -->
+                </div>
+            </section>
 
-        <!-- Модальное окно магазина -->
-        <div id="shop-modal" class="modal hidden">
-            <div class="modal-content">
-                <h2>Магазин Депо</h2>
-                <div class="upgrade-item" onclick="game.buyUpgrade('hose')">
-                    <div class="icon">💦</div>
-                    <div class="info">
-                        <h4>Мощный напор</h4>
-                        <p>Цена: <span id="cost-hose">50</span></p>
+            <!-- ТАБ 3: ШТАБ (Квесты/AFK) -->
+            <section id="tab-hq" class="tab-content">
+                <h2>Пожарный Штаб</h2>
+                
+                <div class="card income-card">
+                    <div class="card-icon">🏦</div>
+                    <div class="card-info">
+                        <h3>Пассивный доход</h3>
+                        <p>Ваша команда работает пока вы спите.</p>
+                        <div class="stat-row">
+                            <span>Прибыль:</span>
+                            <span class="highlight">+<span id="passive-rate">0</span>/сек</span>
+                        </div>
                     </div>
                 </div>
-                <div class="upgrade-item" onclick="game.buyUpgrade('tank')">
-                    <div class="icon">🛢️</div>
-                    <div class="info">
-                        <h4>Бак +20%</h4>
-                        <p>Цена: <span id="cost-tank">100</span></p>
+
+                <h3>Ежедневные квесты</h3>
+                <div class="quest-item">
+                    <div class="quest-desc">
+                        <h4>Потушить 100 пожаров</h4>
+                        <progress id="quest-1-prog" value="0" max="100"></progress>
                     </div>
+                    <button class="btn-claim disabled" id="quest-1-btn">500 🪙</button>
                 </div>
-                <div class="upgrade-item" onclick="game.buyUpgrade('auto')">
-                    <div class="icon">🚁</div>
-                    <div class="info">
-                        <h4>Пожарный дрон</h4>
-                        <p>Цена: <span id="cost-auto">500</span></p>
-                    </div>
-                </div>
-                <button id="close-shop" class="close-btn">Закрыть</button>
-            </div>
-        </div>
+            </section>
+        </main>
+
+        <!-- Нижняя навигация -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" onclick="app.switchTab('game')">
+                <div class="nav-icon">🔥</div>
+                <span>Город</span>
+            </button>
+            <button class="nav-btn" onclick="app.switchTab('shop')">
+                <div class="nav-icon">🛒</div>
+                <span>Депо</span>
+            </button>
+            <button class="nav-btn" onclick="app.switchTab('hq')">
+                <div class="nav-icon">🏢</div>
+                <span>Штаб</span>
+            </button>
+        </nav>
     </div>
-    <script src="script.js"></script>
+
+    <script src="game.js"></script>
 </body>
 </html>
