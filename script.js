@@ -1,258 +1,368 @@
 const tg = window.Telegram.WebApp;
-tg.expand(); // Раскрыть на весь экран
+tg.expand();
+tg.enableClosingConfirmation();
 
-class FirefighterGame {
+// --- PARTICLE SYSTEM (Visual Juice) ---
+class ParticleSystem {
     constructor() {
-        // Состояние игры
-        this.coins = 0;
-        this.water = 100;
-        this.maxWater = 100;
-        this.waterRecovery = 0.5; // Восстановление в тик
-        this.firePower = 20; // Урон по огню за клик
-        this.burnedPercent = 0;
-        this.level = 1;
-        this.autoDrones = 0;
+        this.canvas = document.getElementById('fx-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.particles = [];
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.animate();
+    }
 
-        // Цены
-        this.costs = { hose: 50, tank: 100, auto: 500 };
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
+    spawn(x, y, type = 'water') {
+        const count = type === 'water' ? 8 : 12;
+        for (let i = 0; i < count; i++) {
+            this.particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1.0,
+                type: type,
+                size: Math.random() * 4 + 2
+            });
+        }
+    }
+
+    animate() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Сетка
-        this.gridSize = 25; // 5x5
-        this.cells = [];
-        this.fires = []; // Индексы горящих клеток
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.04;
+            
+            if (p.type === 'water') {
+                p.vy += 0.5; // Gravity
+                this.ctx.fillStyle = `rgba(10, 132, 255, ${p.life})`;
+            } else {
+                p.vy -= 0.1; // Smoke/Fire floats up
+                this.ctx.fillStyle = `rgba(255, 69, 58, ${p.life})`;
+            }
 
-        // Элементы UI
-        this.ui = {
-            coins: document.getElementById('coins'),
-            burned: document.getElementById('burned'),
-            waterBar: document.getElementById('water-level'),
-            grid: document.getElementById('city-grid'),
-            shopModal: document.getElementById('shop-modal'),
-            waterControl: document.querySelector('.water-control')
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            if (p.life <= 0) this.particles.splice(i, 1);
+        }
+        requestAnimationFrame(() => this.animate());
+    }
+}
+
+// --- GAME CORE ---
+class GameApp {
+    constructor() {
+        this.state = {
+            coins: 0,
+            level: 1,
+            xp: 0,
+            water: 100,
+            maxWater: 100,
+            clickPower: 25,
+            autoIncome: 0,
+            burned: 0,
+            firesExtinguished: 0,
+            upgrades: {
+                pump: 1,
+                tank: 1,
+                station: 0
+            }
         };
 
+        this.config = {
+            gridSize: 25,
+            regenRate: 0.2, // Восстановление воды в тик
+            fireSpreadChance: 0.02
+        };
+
+        this.cells = [];
+        this.fx = new ParticleSystem();
+        this.ui = this.bindUI();
+        
         this.init();
     }
 
-    init() {
-        this.loadProgress();
-        this.createGrid();
-        this.setupListeners();
-        
-        // Игровой цикл
-        setInterval(() => this.gameLoop(), 1000); // Каждую секунду
-        setInterval(() => this.regenWater(), 100); // Регенерация воды
-        
-        // Дроны
-        setInterval(() => this.droneWork(), 2000);
+    bindUI() {
+        return {
+            coins: document.getElementById('coins'),
+            burned: document.getElementById('burned'),
+            grid: document.getElementById('city-grid'),
+            waterFill: document.getElementById('water-fill'),
+            waterText: document.getElementById('water-text'),
+            waterBtn: document.getElementById('water-btn'),
+            shopList: document.getElementById('shop-list'),
+            loader: document.getElementById('loader'),
+            app: document.getElementById('app'),
+            questProgress: document.getElementById('quest-1-prog'),
+            questBtn: document.getElementById('quest-1-btn'),
+            passiveRate: document.getElementById('passive-rate')
+        };
     }
 
-    createGrid() {
+    async init() {
+        this.simulateLoading();
+        this.loadSave(); // Загрузка из LocalStorage (в реале - Cloud)
+        this.renderGrid();
+        this.renderShop();
+        this.startLoop();
+        
+        // Слушатели
+        this.ui.waterBtn.addEventListener('click', () => this.manualReload());
+        this.ui.questBtn.addEventListener('click', () => this.claimQuest());
+    }
+
+    simulateLoading() {
+        let progress = 0;
+        const bar = document.querySelector('.loader-progress');
+        const interval = setInterval(() => {
+            progress += 5;
+            bar.style.width = `${progress}%`;
+            if (progress >= 100) {
+                clearInterval(interval);
+                this.ui.loader.classList.add('opacity-0');
+                setTimeout(() => {
+                    this.ui.loader.classList.add('hidden');
+                    this.ui.app.classList.remove('hidden');
+                }, 500);
+            }
+        }, 50);
+    }
+
+    renderGrid() {
         this.ui.grid.innerHTML = '';
         this.cells = [];
-        for (let i = 0; i < this.gridSize; i++) {
+        for (let i = 0; i < this.config.gridSize; i++) {
             const cell = document.createElement('div');
-            cell.classList.add('cell', 'house');
-            cell.dataset.index = i;
+            cell.className = 'cell house';
+            cell.dataset.hp = 0;
             
-            // ХП огня (если 0 - огня нет, 100 - полный огонь)
-            cell.dataset.fireHp = 0;
-            
+            // Используем touchstart для мгновенного отклика на мобильных
             cell.addEventListener('touchstart', (e) => {
-                e.preventDefault(); // Убрать зум
-                this.extinguish(i);
+                e.preventDefault();
+                const rect = cell.getBoundingClientRect();
+                this.handleInteraction(i, rect.left + rect.width/2, rect.top + rect.height/2);
             });
-            cell.addEventListener('click', () => this.extinguish(i));
             
+            // Фоллбек для мышки
+            cell.addEventListener('mousedown', (e) => {
+                const rect = cell.getBoundingClientRect();
+                this.handleInteraction(i, rect.left + rect.width/2, rect.top + rect.height/2);
+            });
+
             this.ui.grid.appendChild(cell);
             this.cells.push(cell);
         }
-        this.startFire(); // Первый пожар
+        this.igniteRandom();
     }
 
-    setupListeners() {
-        document.getElementById('shop-btn').onclick = () => this.ui.shopModal.classList.remove('hidden');
-        document.getElementById('close-shop').onclick = () => this.ui.shopModal.classList.add('hidden');
-        
-        // Клик по баку для быстрой перезарядки
-        this.ui.waterControl.addEventListener('click', () => {
-            this.water = Math.min(this.water + 10, this.maxWater);
-            this.updateUI();
-        });
-
-        this.updateShopUI();
-    }
-
-    startFire() {
-        // Выбираем случайную мирную клетку и поджигаем
-        const peaceful = this.cells.filter(c => c.dataset.fireHp == 0);
-        if (peaceful.length > 0) {
-            const randomCell = peaceful[Math.floor(Math.random() * peaceful.length)];
-            this.ignite(randomCell);
-        }
-    }
-
-    ignite(cell) {
-        cell.dataset.fireHp = 100;
-        cell.classList.remove('house', 'saved');
-        cell.classList.add('fire');
-        tg.HapticFeedback.notificationOccurred('warning');
-    }
-
-    extinguish(index) {
+    handleInteraction(index, x, y) {
         const cell = this.cells[index];
-        let hp = parseInt(cell.dataset.fireHp);
+        const hp = parseInt(cell.dataset.hp);
 
-        if (hp > 0 && this.water >= 5) {
-            // Тушим
-            this.water -= 5;
-            hp -= this.firePower;
-            tg.HapticFeedback.impactOccurred('light');
+        if (hp > 0) {
+            // Тушим огонь
+            if (this.state.water >= 5) {
+                this.state.water -= 5;
+                const damage = this.state.clickPower;
+                const newHp = Math.max(0, hp - damage);
+                
+                cell.dataset.hp = newHp;
+                this.fx.spawn(x, y, 'water');
+                tg.HapticFeedback.impactOccurred('medium');
 
-            if (hp <= 0) {
-                // Потушили
-                hp = 0;
-                cell.classList.remove('fire');
-                cell.classList.add('house', 'saved');
-                this.coins += 10 + (this.level * 2);
-                this.checkLevelUp();
-                tg.HapticFeedback.notificationOccurred('success');
-            } else {
-                // Эффект пара (визуально можно доработать)
-            }
-            
-            cell.dataset.fireHp = hp;
-            this.updateUI();
-        } else if (this.water < 5) {
-             // Нет воды
-             this.ui.waterControl.classList.add('shake'); // Добавить CSS анимацию тряски
-             setTimeout(() => this.ui.waterControl.classList.remove('shake'), 500);
-        }
-    }
-
-    regenWater() {
-        if (this.water < this.maxWater) {
-            this.water += this.waterRecovery;
-            if (this.water > this.maxWater) this.water = this.maxWater;
-            this.updateUI();
-        }
-    }
-
-    gameLoop() {
-        // Распространение огня
-        const burning = this.cells.filter(c => c.dataset.fireHp > 0);
-        this.burnedPercent = Math.floor((burning.length / this.gridSize) * 100);
-
-        if (Math.random() < 0.3 + (this.level * 0.05)) {
-            this.startFire();
-        }
-        
-        this.saveProgress();
-        this.updateUI();
-    }
-
-    droneWork() {
-        if (this.autoDrones > 0) {
-            for(let i=0; i < this.autoDrones; i++) {
-                const burning = this.cells.filter(c => c.dataset.fireHp > 0);
-                if(burning.length > 0) {
-                    const target = burning[Math.floor(Math.random() * burning.length)];
-                    const idx = parseInt(target.dataset.index);
-                    // Дроны тушат без траты воды игрока, но медленно
-                    let hp = parseInt(target.dataset.fireHp);
-                    hp -= 20;
-                    if (hp <= 0) {
-                        hp = 0;
-                        target.classList.remove('fire');
-                        target.classList.add('house', 'saved');
-                        this.coins += 5;
-                    }
-                    target.dataset.fireHp = hp;
+                if (newHp === 0) {
+                    this.extinguishFire(cell);
                 }
+                this.updateUI();
+            } else {
+                tg.HapticFeedback.notificationOccurred('error');
+                this.ui.waterBtn.parentElement.classList.add('shake'); // Анимация всего блока
+                setTimeout(() => this.ui.waterBtn.parentElement.classList.remove('shake'), 500);
             }
+        } else {
+            // Просто клик по дому (пасхалка или звук)
+            // tg.HapticFeedback.selectionChanged();
+        }
+    }
+
+    extinguishFire(cell) {
+        cell.className = 'cell house';
+        this.state.coins += 10 + (this.state.level * 2);
+        this.state.firesExtinguished++;
+        tg.HapticFeedback.notificationOccurred('success');
+        
+        // Проверка квеста
+        this.updateQuestUI();
+    }
+
+    manualReload() {
+        if (this.state.water < this.state.maxWater) {
+            this.state.water = Math.min(this.state.water + 15, this.state.maxWater);
+            tg.HapticFeedback.selectionChanged();
             this.updateUI();
         }
     }
 
-    buyUpgrade(type) {
-        if (this.coins >= this.costs[type]) {
-            this.coins -= this.costs[type];
+    igniteRandom() {
+        const safeCells = this.cells.filter(c => c.dataset.hp == 0);
+        if (safeCells.length > 0) {
+            const target = safeCells[Math.floor(Math.random() * safeCells.length)];
+            target.dataset.hp = 100;
+            target.className = 'cell fire';
             
-            switch(type) {
-                case 'hose':
-                    this.firePower += 10;
-                    this.costs.hose = Math.floor(this.costs.hose * 1.5);
-                    break;
-                case 'tank':
-                    this.maxWater += 50;
-                    this.water = this.maxWater;
-                    this.costs.tank = Math.floor(this.costs.tank * 1.5);
-                    break;
-                case 'auto':
-                    this.autoDrones++;
-                    this.costs.auto = Math.floor(this.costs.auto * 2);
-                    break;
+            const rect = target.getBoundingClientRect();
+            this.fx.spawn(rect.left + 20, rect.top + 20, 'fire');
+        }
+    }
+
+    startLoop() {
+        setInterval(() => {
+            // 1. Медленное восстановление воды
+            if (this.state.water < this.state.maxWater) {
+                this.state.water = Math.min(this.state.water + this.config.regenRate, this.state.maxWater);
             }
+
+            // 2. Распространение огня
+            const burningCount = this.cells.filter(c => c.dataset.hp > 0).length;
+            this.state.burned = Math.floor((burningCount / this.config.gridSize) * 100);
             
-            tg.HapticFeedback.notificationOccurred('success');
+            // Шанс нового возгорания зависит от текущего %
+            const chance = this.config.fireSpreadChance + (this.state.burned / 5000);
+            if (Math.random() < chance) {
+                this.igniteRandom();
+            }
+
+            // 3. Пассивный доход
+            if (this.state.autoIncome > 0) {
+                this.state.coins += this.state.autoIncome / 10; // делим на 10 т.к. тик 100мс
+            }
+
             this.updateUI();
-            this.updateShopUI();
-            this.saveProgress();
+        }, 100); // Тик каждые 100мс (10 раз в секунду)
+        
+        // Автосохранение каждые 10 сек
+        setInterval(() => this.saveData(), 10000);
+    }
+
+    renderShop() {
+        const items = [
+            { id: 'pump', name: 'Турбо-насос', desc: '+5 к силе клика', cost: 100, icon: '🔫' },
+            { id: 'tank', name: 'Бак 2000', desc: '+50 к объему воды', cost: 250, icon: '🛢️' },
+            { id: 'station', name: 'Найм бригады', desc: '+2 монеты/сек (AFK)', cost: 1000, icon: '👨‍🚒' }
+        ];
+
+        this.ui.shopList.innerHTML = '';
+        items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'shop-item';
+            div.innerHTML = `
+                <div class="item-icon">${item.icon}</div>
+                <div class="item-details">
+                    <h4>${item.name} <small>(Ур. <span id="lvl-${item.id}">${this.state.upgrades[item.id]}</span>)</small></h4>
+                    <p>${item.desc}</p>
+                </div>
+                <button class="buy-btn" id="btn-${item.id}" onclick="app.buy('${item.id}', ${item.cost})">
+                    ${this.getPrice(item.id, item.cost)} 🪙
+                </button>
+            `;
+            this.ui.shopList.appendChild(div);
+        });
+    }
+
+    getPrice(id, baseCost) {
+        return Math.floor(baseCost * Math.pow(1.5, this.state.upgrades[id]));
+    }
+
+    buy(id, baseCost) {
+        const price = this.getPrice(id, baseCost);
+        if (this.state.coins >= price) {
+            this.state.coins -= price;
+            this.state.upgrades[id]++;
+            
+            // Применяем эффекты
+            if (id === 'pump') this.state.clickPower += 5;
+            if (id === 'tank') this.state.maxWater += 50;
+            if (id === 'station') this.state.autoIncome += 2;
+
+            tg.HapticFeedback.notificationOccurred('success');
+            this.renderShop(); // Перерисовать цены
+            this.updateUI();
         } else {
             tg.HapticFeedback.notificationOccurred('error');
         }
     }
 
-    checkLevelUp() {
-        if (this.coins > this.level * 500) {
-            this.level++;
-            document.getElementById('level').innerText = this.level;
-            // Усложнение игры можно добавить здесь
+    switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+        // Находим кнопку (грязно, но быстро)
+        const btns = document.querySelectorAll('.nav-btn');
+        if(tabId === 'game') btns[0].classList.add('active');
+        if(tabId === 'shop') btns[1].classList.add('active');
+        if(tabId === 'hq') btns[2].classList.add('active');
+        
+        tg.HapticFeedback.selectionChanged();
+    }
+
+    updateQuestUI() {
+        const target = 100;
+        const current = Math.min(this.state.firesExtinguished, target);
+        this.ui.questProgress.value = current;
+        
+        if (current >= target && !this.ui.questBtn.classList.contains('claimed')) {
+            this.ui.questBtn.classList.remove('disabled');
+            this.ui.questBtn.style.background = 'var(--success)';
+            this.ui.questBtn.style.color = '#fff';
+        }
+    }
+
+    claimQuest() {
+        if (!this.ui.questBtn.classList.contains('disabled') && !this.ui.questBtn.classList.contains('claimed')) {
+            this.state.coins += 500;
+            this.ui.questBtn.innerText = 'Получено ✅';
+            this.ui.questBtn.classList.add('claimed', 'disabled');
+            tg.HapticFeedback.notificationOccurred('success');
         }
     }
 
     updateUI() {
-        this.ui.coins.innerText = Math.floor(this.coins);
-        this.ui.burned.innerText = this.burnedPercent + '%';
-        this.ui.burned.style.color = this.burnedPercent > 50 ? 'red' : 'white';
+        this.ui.coins.innerText = Math.floor(this.state.coins);
+        this.ui.burned.innerText = this.state.burned + '%';
+        this.ui.burned.style.color = this.state.burned > 50 ? 'var(--danger)' : 'var(--text-main)';
         
-        const pct = (this.water / this.maxWater) * 100;
-        this.ui.waterBar.style.width = pct + '%';
-        this.ui.waterBar.style.backgroundColor = pct < 20 ? 'red' : 'var(--water-color)';
+        const pct = (this.state.water / this.state.maxWater) * 100;
+        this.ui.waterFill.style.width = `${pct}%`;
+        this.ui.waterText.innerText = `${Math.floor(this.state.water)}/${this.state.maxWater}`;
+        
+        this.ui.passiveRate.innerText = this.state.autoIncome.toFixed(1);
     }
 
-    updateShopUI() {
-        document.getElementById('cost-hose').innerText = this.costs.hose;
-        document.getElementById('cost-tank').innerText = this.costs.tank;
-        document.getElementById('cost-auto').innerText = this.costs.auto;
+    saveData() {
+        const json = JSON.stringify(this.state);
+        localStorage.setItem('FireHeroPro_v1', json);
+        // TODO: Здесь добавить tg.CloudStorage.setItem для реального продакшена
     }
 
-    saveProgress() {
-        const data = {
-            coins: this.coins,
-            level: this.level,
-            costs: this.costs,
-            firePower: this.firePower,
-            maxWater: this.maxWater,
-            autoDrones: this.autoDrones
-        };
-        localStorage.setItem('fireHeroSave', JSON.stringify(data));
-    }
-
-    loadProgress() {
-        const saved = localStorage.getItem('fireHeroSave');
-        if (saved) {
-            const data = JSON.parse(saved);
-            this.coins = data.coins || 0;
-            this.level = data.level || 1;
-            this.costs = data.costs || this.costs;
-            this.firePower = data.firePower || 20;
-            this.maxWater = data.maxWater || 100;
-            this.autoDrones = data.autoDrones || 0;
-            document.getElementById('level').innerText = this.level;
+    loadSave() {
+        const save = localStorage.getItem('FireHeroPro_v1');
+        if (save) {
+            const data = JSON.parse(save);
+            // Merge state to avoid breaking on updates
+            this.state = { ...this.state, ...data };
         }
     }
 }
 
-// Запуск игры
-window.game = new FirefighterGame();
+window.app = new GameApp();
