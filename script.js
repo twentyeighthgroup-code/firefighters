@@ -1,7 +1,6 @@
 /**
- * FireHero: Elite Squad
- * Senior-level Refactor
- * Stack: Vanilla JS (ES6+), Proxy State, Canvas Particles, Virtual-DOM-ish approach
+ * FireHero: Elite Squad (Fixed Version)
+ * Исправленная версия с безопасной инициализацией
  */
 
 // --- CONFIGURATION ---
@@ -16,23 +15,30 @@ const CONFIG = {
         rain: 50
     },
     levels: {
-        pump: [0, 5, 12, 25, 50, 100], // Click Power
-        tank: [0, 50, 150, 300, 600, 1000] // Bonus Water
+        pump: [0, 5, 12, 25, 50, 100], 
+        tank: [0, 50, 150, 300, 600, 1000]
     }
 };
 
-// --- CORE UTILS ---
+// --- CORE UTILS (SAFE) ---
 const TG = window.Telegram.WebApp;
+
+// Безопасная обертка для вибрации
 const Haptic = {
-    impact: (style = 'medium') => TG.HapticFeedback?.impactOccurred(style),
-    notify: (type = 'success') => TG.HapticFeedback?.notificationOccurred(type),
-    select: () => TG.HapticFeedback?.selectionChanged()
+    impact: (style = 'medium') => {
+        if(TG.HapticFeedback) TG.HapticFeedback.impactOccurred(style);
+    },
+    notify: (type = 'success') => {
+        if(TG.HapticFeedback) TG.HapticFeedback.notificationOccurred(type);
+    },
+    select: () => {
+        if(TG.HapticFeedback) TG.HapticFeedback.selectionChanged();
+    }
 };
 
-// --- STATE MANAGEMENT (REACTIVE) ---
+// --- STATE MANAGEMENT ---
 class GameState {
     constructor() {
-        // Начальное состояние
         this._data = {
             coins: 0,
             water: 100,
@@ -41,11 +47,9 @@ class GameState {
             upgrades: { pump: 1, tank: 1 },
             lastSave: Date.now()
         };
-
-        // Слушатели изменений
         this.listeners = new Map();
-
-        // Создаем Proxy для перехвата изменений
+        
+        // Proxy для автоматического обновления UI
         this.proxy = new Proxy(this._data, {
             set: (target, prop, value) => {
                 target[prop] = value;
@@ -57,7 +61,6 @@ class GameState {
 
     get() { return this.proxy; }
 
-    // Подписка UI на изменения конкретных полей
     subscribe(prop, callback) {
         if (!this.listeners.has(prop)) this.listeners.set(prop, []);
         this.listeners.get(prop).push(callback);
@@ -74,7 +77,7 @@ class GameState {
             const saved = localStorage.getItem('FireHero_Save_v1');
             if (saved) Object.assign(this._data, JSON.parse(saved));
         } catch (e) { console.warn('Save file corrupted'); }
-        // Инициализация UI
+        // Принудительное обновление всех подписчиков
         Object.keys(this._data).forEach(k => this.notify(k, this._data[k]));
     }
 
@@ -83,10 +86,11 @@ class GameState {
     }
 }
 
-// --- VISUAL FX SYSTEM (Canvas) ---
+// --- VISUAL FX SYSTEM ---
 class FXManager {
     constructor() {
         this.canvas = document.getElementById('game-canvas');
+        if (!this.canvas) return; // Защита если canvas не найден
         this.ctx = this.canvas.getContext('2d');
         this.particles = [];
         this.floatingTexts = [];
@@ -97,6 +101,7 @@ class FXManager {
     }
 
     resize() {
+        if (!this.canvas) return;
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
     }
@@ -119,6 +124,7 @@ class FXManager {
     }
 
     loop() {
+        if (!this.ctx) return;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Particles
@@ -128,7 +134,7 @@ class FXManager {
             p.y += p.vy;
             p.life -= 0.04;
             
-            if (p.type === 'rain') p.vy += 1; else p.vy += 0.2; // Gravity
+            if (p.type === 'rain') p.vy += 1; else p.vy += 0.2;
 
             this.ctx.fillStyle = `rgba(${p.color}, ${p.life})`;
             this.ctx.beginPath();
@@ -138,14 +144,14 @@ class FXManager {
             if (p.life <= 0) this.particles.splice(i, 1);
         }
 
-        // Floating Text
+        // Text
         this.ctx.font = "bold 24px -apple-system";
         this.ctx.textAlign = "center";
         for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
             const t = this.floatingTexts[i];
             t.y += t.vy;
             t.life -= 0.02;
-            this.ctx.fillStyle = t.color; // Opacity handling needs parsing but simplifying here
+            this.ctx.fillStyle = t.color;
             this.ctx.globalAlpha = Math.max(0, t.life);
             this.ctx.fillText(t.text, t.x, t.y);
             this.ctx.globalAlpha = 1;
@@ -159,28 +165,30 @@ class FXManager {
 // --- MAIN GAME CONTROLLER ---
 class GameController {
     constructor() {
+        console.log("Game Controller starting...");
         this.store = new GameState();
         this.state = this.store.get();
         this.fx = new FXManager();
         this.cells = [];
         this.lastTime = 0;
         
-        // Caches
         this.ui = {
             grid: document.getElementById('grid-container'),
             waterFill: document.getElementById('water-bar-fill'),
             rainBtn: document.getElementById('btn-rain'),
             shop: document.getElementById('shop-container'),
             views: document.querySelectorAll('.view'),
-            navs: document.querySelectorAll('.nav-item')
+            navs: document.querySelectorAll('.nav-item'),
+            loader: document.getElementById('loader'),
+            app: document.getElementById('app')
         };
-
-        this.init();
     }
 
-    async init() {
-        try { TG.expand(); TG.disableVerticalSwipes(); } catch(e){}
-        
+    init() {
+        try {
+            TG.expand();
+        } catch(e) { console.log("Telegram expand failed (browser mode?)"); }
+
         this.setupBindings();
         this.generateGrid();
         this.renderShop();
@@ -189,21 +197,22 @@ class GameController {
         // Load Data
         this.store.load();
         
-        // Start Loops
+        // Start Loop
         requestAnimationFrame((t) => this.gameLoop(t));
         
-        // Remove Loader
+        // Hide Loader
         setTimeout(() => {
-            document.getElementById('loader').classList.add('hidden');
-            document.getElementById('app').classList.remove('hidden');
-        }, 1000);
+            if(this.ui.loader) this.ui.loader.classList.add('hidden');
+            if(this.ui.app) this.ui.app.classList.remove('hidden');
+        }, 800);
 
-        this.ui.rainBtn.addEventListener('click', () => this.activateRain());
-        document.getElementById('water-btn').addEventListener('click', () => this.manualRefill());
+        // Listeners
+        if(this.ui.rainBtn) this.ui.rainBtn.addEventListener('click', () => this.activateRain());
+        const waterBtn = document.getElementById('water-btn');
+        if(waterBtn) waterBtn.addEventListener('click', () => this.manualRefill());
     }
 
     setupBindings() {
-        // Data-binding: ищем все элементы с data-bind и обновляем их при смене state
         const boundElements = document.querySelectorAll('[data-bind]');
         boundElements.forEach(el => {
             const prop = el.dataset.bind;
@@ -214,18 +223,20 @@ class GameController {
             });
         });
 
-        // Special bindings
         this.store.subscribe('water', (val) => {
-            const pct = (val / this.state.maxWater) * 100;
-            this.ui.waterFill.style.transform = `scaleX(${pct / 100})`;
-            
-            // Unlock rain logic
-            if (val >= CONFIG.costs.rain) this.ui.rainBtn.classList.remove('locked');
-            else this.ui.rainBtn.classList.add('locked');
+            if(this.ui.waterFill) {
+                const pct = (val / this.state.maxWater) * 100;
+                this.ui.waterFill.style.transform = `scaleX(${pct / 100})`;
+            }
+            if(this.ui.rainBtn) {
+                if (val >= CONFIG.costs.rain) this.ui.rainBtn.classList.remove('locked');
+                else this.ui.rainBtn.classList.add('locked');
+            }
         });
     }
 
     generateGrid() {
+        if(!this.ui.grid) return;
         this.ui.grid.innerHTML = '';
         for (let i = 0; i < CONFIG.gridSize; i++) {
             const cell = document.createElement('div');
@@ -233,15 +244,13 @@ class GameController {
             cell.innerHTML = '<div class="cell-content">🏢</div>';
             cell.dataset.hp = 0;
             
-            // Fast Interaction
             const interact = (e) => {
-                // Prevent ghost clicks
-                if (e.type === 'touchstart') e.preventDefault(); 
+                // e.preventDefault(); // removed to allow scrolling if needed
                 const rect = cell.getBoundingClientRect();
                 this.handleCellClick(i, cell, rect.left + rect.width/2, rect.top + rect.height/2);
             };
             
-            cell.addEventListener('touchstart', interact, {passive: false});
+            cell.addEventListener('touchstart', interact, {passive: true});
             cell.addEventListener('mousedown', interact);
             
             this.ui.grid.appendChild(cell);
@@ -253,7 +262,6 @@ class GameController {
         const hp = parseInt(el.dataset.hp);
         
         if (hp > 0) {
-            // Extinguish Logic
             if (this.state.water >= 5) {
                 this.state.water -= 5;
                 const power = CONFIG.levels.pump[this.state.upgrades.pump] + 20;
@@ -268,13 +276,7 @@ class GameController {
                 }
             } else {
                 Haptic.notify('error');
-                // Shake water bar UI
-                document.querySelector('.water-widget').style.animation = 'shake 0.4s';
-                setTimeout(()=>document.querySelector('.water-widget').style.animation='', 400);
             }
-        } else {
-            // Just effects
-            // Haptic.select();
         }
     }
 
@@ -300,12 +302,10 @@ class GameController {
             this.state.water -= CONFIG.costs.rain;
             Haptic.notify('success');
             
-            // Visuals
             const interval = setInterval(() => {
                 this.fx.spawn(Math.random() * window.innerWidth, -10, 'rain');
             }, 50);
 
-            // Logic: Clear all fires over 2 seconds
             setTimeout(() => {
                 clearInterval(interval);
                 this.cells.forEach(c => {
@@ -326,21 +326,19 @@ class GameController {
         }
     }
 
-    // --- GAME LOOP (Delta Time) ---
     gameLoop(timestamp) {
         const dt = (timestamp - this.lastTime) / 1000;
         this.lastTime = timestamp;
 
-        // 1. Water Regen
+        // Regen
         if (this.state.water < this.state.maxWater) {
             this.state.water = Math.min(this.state.water + (CONFIG.regenRate * dt), this.state.maxWater);
         }
 
-        // 2. Fire Spread Logic
+        // Fire Logic
         const burning = this.cells.filter(c => parseInt(c.dataset.hp) > 0);
         this.state.burnedPercent = Math.floor((burning.length / CONFIG.gridSize) * 100);
         
-        // Chance to burn based on current threat
         if (Math.random() < CONFIG.fireSpreadChance && burning.length < CONFIG.gridSize) {
             const safe = this.cells.filter(c => parseInt(c.dataset.hp) === 0);
             if (safe.length > 0) {
@@ -349,7 +347,7 @@ class GameController {
             }
         }
 
-        // 3. Auto Save
+        // Save
         if (Date.now() - this.state.lastSave > CONFIG.autoSaveInterval) {
             this.store.save();
             this.state.lastSave = Date.now();
@@ -358,8 +356,8 @@ class GameController {
         requestAnimationFrame((t) => this.gameLoop(t));
     }
 
-    // --- UI HELPERS ---
     renderShop() {
+        if(!this.ui.shop) return;
         const items = [
             { id: 'pump', name: 'Гидро-Пушка', icon: '🔫', desc: 'Мощность струи' },
             { id: 'tank', name: 'Цистерна', icon: '🛢️', desc: 'Запас воды' }
@@ -372,7 +370,7 @@ class GameController {
                     <h4>${item.name} <small>Lvl <span data-bind-upgrade="${item.id}">1</span></small></h4>
                     <p>${item.desc}</p>
                 </div>
-                <button class="btn-buy" onclick="Game.buyUpgrade('${item.id}')">
+                <button class="btn-buy" onclick="window.Game.buyUpgrade('${item.id}')">
                     <span id="cost-${item.id}">...</span> 🪙
                 </button>
             </div>
@@ -392,7 +390,7 @@ class GameController {
             
             Haptic.notify('success');
             this.updateShopPrices();
-            this.store.save(); // Force save
+            this.store.save(); 
         } else {
             Haptic.notify('error');
         }
@@ -404,8 +402,6 @@ class GameController {
             const cost = Math.floor(CONFIG.costs[id].base * Math.pow(CONFIG.costs[id].growth, lvl));
             const btn = document.getElementById(`cost-${id}`);
             if (btn) btn.innerText = cost;
-            
-            // Update level text manually since it's inside a list
             document.querySelectorAll(`[data-bind-upgrade="${id}"]`).forEach(el => el.innerText = lvl);
         });
     }
@@ -414,30 +410,39 @@ class GameController {
         this.ui.navs.forEach(btn => {
             btn.addEventListener('click', () => {
                 const targetId = btn.dataset.target;
-                
-                // UI Switch
                 this.ui.views.forEach(v => v.classList.remove('active'));
-                document.getElementById(targetId).classList.add('active');
+                const target = document.getElementById(targetId);
+                if(target) target.classList.add('active');
                 
-                // Btn active state
                 this.ui.navs.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
                 Haptic.select();
             });
         });
         
-        // Fake Leaderboard fill
-        const names = ['FireMaster', 'SaveCity', 'Hero123', 'WaterBoy'];
-        document.getElementById('leaderboard-list').innerHTML = names.map((n, i) => `
-            <div class="leader-item">
-                <div style="font-weight:bold; width:30px">#${i+2}</div>
-                <div style="flex:1">${n}</div>
-                <div style="color:#ffd60a">${15000 - (i*1000)}</div>
-            </div>
-        `).join('');
+        const lb = document.getElementById('leaderboard-list');
+        if(lb) {
+            const names = ['FireMaster', 'SaveCity', 'Hero123', 'WaterBoy'];
+            lb.innerHTML = names.map((n, i) => `
+                <div class="leader-item">
+                    <div style="font-weight:bold; width:30px">#${i+2}</div>
+                    <div style="flex:1">${n}</div>
+                    <div style="color:#ffd60a">${15000 - (i*1000)}</div>
+                </div>
+            `).join('');
+        }
     }
 }
 
-// Global Access for HTML onclicks
-window.Game = new GameController();
+// --- SAFE STARTUP ---
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        window.Game = new GameController();
+        window.Game.init();
+    } catch (e) {
+        console.error("Game Init Failed:", e);
+        // Force hide loader if error
+        document.getElementById('loader').style.display = 'none';
+        alert("Ошибка запуска игры. Обновите страницу.");
+    }
+});
