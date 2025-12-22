@@ -8,103 +8,96 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-    <!-- Экран загрузки -->
     <div id="loader" class="loader-screen">
         <div class="loader-icon">🚒</div>
         <div class="loader-bar"><div class="loader-progress"></div></div>
-        <p>Загрузка ресурсов...</p>
+        <p>Загрузка города...</p>
     </div>
 
-    <!-- Эффекты (частицы) -->
     <canvas id="fx-canvas"></canvas>
 
+    <!-- Модальное окно Ежедневной награды -->
+    <div id="modal-daily" class="modal hidden">
+        <div class="modal-content">
+            <h2>📅 Ежедневный бонус</h2>
+            <div class="daily-grid" id="daily-grid">
+                <!-- Генерируется JS -->
+            </div>
+            <button id="btn-claim-daily" class="main-btn" disabled>Забрать</button>
+        </div>
+    </div>
+
     <div class="app-container hidden" id="app">
-        <!-- Верхний HUD -->
         <header class="top-hud">
             <div class="resource-pill">
-                <span class="icon">🪙</span>
-                <span id="coins">0</span>
+                <span class="icon">🪙</span><span id="coins">0</span>
             </div>
             <div class="resource-pill danger">
-                <span class="icon">🔥</span>
-                <span id="burned">0%</span>
+                <span class="icon">🔥</span><span id="burned">0%</span>
             </div>
         </header>
 
-        <!-- Основной контент (Страницы) -->
         <main class="content-area">
-            
             <!-- ТАБ 1: ИГРА -->
             <section id="tab-game" class="tab-content active">
-                <div class="level-info">Район: <b id="district-name">Центр</b> (Ур. <span id="level">1</span>)</div>
+                <div class="game-header">
+                    <span>Район: <b id="district-name">Центр</b></span>
+                    <button class="ability-btn" id="ability-rain">⛈️ Вызвать дождь</button>
+                </div>
                 
                 <div id="city-grid" class="city-grid"></div>
 
                 <div class="water-control-container">
                     <div class="water-info">
-                        <span>💧 Вода</span>
-                        <span id="water-text">100/100</span>
+                        <span>💧 Вода</span><span id="water-text">100/100</span>
                     </div>
                     <div class="water-track" id="water-btn">
                         <div class="water-fill" id="water-fill"></div>
                         <div class="water-glare"></div>
                     </div>
-                    <div class="hint">Тапай для перезарядки</div>
                 </div>
             </section>
 
             <!-- ТАБ 2: МАГАЗИН -->
             <section id="tab-shop" class="tab-content">
-                <h2>Магазин оборудования</h2>
-                <div class="shop-list" id="shop-list">
-                    <!-- Генерируется JS -->
-                </div>
+                <h2>Магазин Депо</h2>
+                <div class="shop-list" id="shop-list"></div>
             </section>
 
-            <!-- ТАБ 3: ШТАБ (Квесты/AFK) -->
-            <section id="tab-hq" class="tab-content">
-                <h2>Пожарный Штаб</h2>
-                
-                <div class="card income-card">
-                    <div class="card-icon">🏦</div>
-                    <div class="card-info">
-                        <h3>Пассивный доход</h3>
-                        <p>Ваша команда работает пока вы спите.</p>
-                        <div class="stat-row">
-                            <span>Прибыль:</span>
-                            <span class="highlight">+<span id="passive-rate">0</span>/сек</span>
-                        </div>
+            <!-- ТАБ 3: СОЦИУМ (Новое) -->
+            <section id="tab-social" class="tab-content">
+                <h2>🏆 Лидеры города</h2>
+                <div class="leaderboard-card">
+                    <div class="leader-row self">
+                        <span class="rank">#42</span>
+                        <span class="name">ВЫ</span>
+                        <span class="score"><span id="total-score">0</span> 🪙</span>
+                    </div>
+                    <div id="leaderboard-list">
+                        <!-- Фейковые лидеры -->
                     </div>
                 </div>
 
-                <h3>Ежедневные квесты</h3>
-                <div class="quest-item">
-                    <div class="quest-desc">
-                        <h4>Потушить 100 пожаров</h4>
-                        <progress id="quest-1-prog" value="0" max="100"></progress>
-                    </div>
-                    <button class="btn-claim disabled" id="quest-1-btn">500 🪙</button>
+                <h3>🤝 Пригласить друзей</h3>
+                <div class="invite-card">
+                    <p>Получи +1000 монет за друга!</p>
+                    <button class="main-btn" onclick="app.inviteFriend()">Пригласить</button>
                 </div>
             </section>
         </main>
 
-        <!-- Нижняя навигация -->
         <nav class="bottom-nav">
             <button class="nav-btn active" onclick="app.switchTab('game')">
-                <div class="nav-icon">🔥</div>
-                <span>Город</span>
+                <div class="nav-icon">🔥</div><span>Город</span>
             </button>
             <button class="nav-btn" onclick="app.switchTab('shop')">
-                <div class="nav-icon">🛒</div>
-                <span>Депо</span>
+                <div class="nav-icon">🛒</div><span>Депо</span>
             </button>
-            <button class="nav-btn" onclick="app.switchTab('hq')">
-                <div class="nav-icon">🏢</div>
-                <span>Штаб</span>
+            <button class="nav-btn" onclick="app.switchTab('social')">
+                <div class="nav-icon">🏆</div><span>Топ</span>
             </button>
         </nav>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
