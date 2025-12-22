@@ -1,143 +1,186 @@
 const tg = window.Telegram.WebApp;
-tg.expand();
-tg.enableClosingConfirmation();
+try { tg.expand(); tg.disableVerticalSwipes(); } catch(e) {}
 
-// --- PARTICLE SYSTEM (Visual Juice) ---
+// --- FIX: Haptic Mock для ПК ---
+if (!tg.HapticFeedback) {
+    tg.HapticFeedback = {
+        impactOccurred: () => {},
+        notificationOccurred: () => {},
+        selectionChanged: () => {}
+    };
+}
+
+// --- PARTICLE SYSTEM ---
 class ParticleSystem {
     constructor() {
         this.canvas = document.getElementById('fx-canvas');
+        if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
         this.particles = [];
         this.resize();
         window.addEventListener('resize', () => this.resize());
         this.animate();
     }
-
-    resize() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-    }
-
-    spawn(x, y, type = 'water') {
-        const count = type === 'water' ? 8 : 12;
+    resize() { this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; }
+    spawn(x, y, type = 'water', count = 8) {
         for (let i = 0; i < count; i++) {
             this.particles.push({
                 x: x, y: y,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
-                life: 1.0,
-                type: type,
-                size: Math.random() * 4 + 2
+                vx: (Math.random() - 0.5) * (type==='rain'?2:10),
+                vy: (Math.random() - 0.5) * (type==='rain'?2:10),
+                life: 1.0, type: type,
+                size: Math.random() * 3 + 2
             });
         }
     }
-
     animate() {
+        if (!this.ctx) return;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.life -= 0.04;
-            
-            if (p.type === 'water') {
-                p.vy += 0.5; // Gravity
-                this.ctx.fillStyle = `rgba(10, 132, 255, ${p.life})`;
-            } else {
-                p.vy -= 0.1; // Smoke/Fire floats up
-                this.ctx.fillStyle = `rgba(255, 69, 58, ${p.life})`;
-            }
+            p.life -= 0.03;
+            if (p.type === 'water') p.vy += 0.5; // Гравитация
+            if (p.type === 'rain') p.vy += 10; // Быстрый дождь вниз
+            else if (p.type === 'fire') p.vy -= 0.1; // Дым вверх
 
-            this.ctx.beginPath();
-            this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            this.ctx.fill();
-
+            this.ctx.fillStyle = p.type==='fire' ? `rgba(255, 69, 58, ${p.life})` : `rgba(10, 132, 255, ${p.life})`;
+            this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); this.ctx.fill();
             if (p.life <= 0) this.particles.splice(i, 1);
         }
         requestAnimationFrame(() => this.animate());
     }
 }
 
-// --- GAME CORE ---
+// --- GAME LOGIC ---
 class GameApp {
     constructor() {
         this.state = {
             coins: 0,
             level: 1,
-            xp: 0,
-            water: 100,
-            maxWater: 100,
+            water: 100, maxWater: 100,
             clickPower: 25,
-            autoIncome: 0,
             burned: 0,
             firesExtinguished: 0,
-            upgrades: {
-                pump: 1,
-                tank: 1,
-                station: 0
-            }
+            upgrades: { pump: 1, tank: 1 },
+            lastLogin: 0,
+            streak: 0
         };
-
-        this.config = {
-            gridSize: 25,
-            regenRate: 0.2, // Восстановление воды в тик
-            fireSpreadChance: 0.02
-        };
-
+        this.config = { gridSize: 25, regenRate: 0.2 };
         this.cells = [];
         this.fx = new ParticleSystem();
-        this.ui = this.bindUI();
-        
-        this.init();
+    }
+
+    start() {
+        // Ждем загрузки DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            this.ui = this.bindUI();
+            this.init();
+        });
     }
 
     bindUI() {
+        const get = (id) => document.getElementById(id);
         return {
-            coins: document.getElementById('coins'),
-            burned: document.getElementById('burned'),
-            grid: document.getElementById('city-grid'),
-            waterFill: document.getElementById('water-fill'),
-            waterText: document.getElementById('water-text'),
-            waterBtn: document.getElementById('water-btn'),
-            shopList: document.getElementById('shop-list'),
-            loader: document.getElementById('loader'),
-            app: document.getElementById('app'),
-            questProgress: document.getElementById('quest-1-prog'),
-            questBtn: document.getElementById('quest-1-btn'),
-            passiveRate: document.getElementById('passive-rate')
+            coins: get('coins'), burned: get('burned'),
+            grid: get('city-grid'), waterFill: get('water-fill'), waterText: get('water-text'),
+            waterBtn: get('water-btn'), shopList: get('shop-list'),
+            loader: get('loader'), app: get('app'),
+            modalDaily: get('modal-daily'), dailyGrid: get('daily-grid'), btnDaily: get('btn-claim-daily'),
+            abilityRain: get('ability-rain'),
+            leaderboardList: get('leaderboard-list'), totalScore: get('total-score')
         };
     }
 
-    async init() {
+    init() {
+        this.loadSave();
         this.simulateLoading();
-        this.loadSave(); // Загрузка из LocalStorage (в реале - Cloud)
         this.renderGrid();
         this.renderShop();
+        this.renderLeaderboard();
         this.startLoop();
-        
+        this.checkDailyBonus();
+
         // Слушатели
-        this.ui.waterBtn.addEventListener('click', () => this.manualReload());
-        this.ui.questBtn.addEventListener('click', () => this.claimQuest());
+        if(this.ui.waterBtn) this.ui.waterBtn.addEventListener('click', () => this.manualReload());
+        if(this.ui.abilityRain) this.ui.abilityRain.addEventListener('click', () => this.activateRain());
     }
 
     simulateLoading() {
-        let progress = 0;
-        const bar = document.querySelector('.loader-progress');
-        const interval = setInterval(() => {
-            progress += 5;
-            bar.style.width = `${progress}%`;
-            if (progress >= 100) {
-                clearInterval(interval);
-                this.ui.loader.classList.add('opacity-0');
-                setTimeout(() => {
-                    this.ui.loader.classList.add('hidden');
-                    this.ui.app.classList.remove('hidden');
-                }, 500);
-            }
-        }, 50);
+        setTimeout(() => {
+            if(this.ui.loader) this.ui.loader.classList.add('hidden');
+            if(this.ui.app) this.ui.app.classList.remove('hidden');
+        }, 1500);
     }
 
+    // --- NEW: Ежедневный бонус ---
+    checkDailyBonus() {
+        const now = new Date();
+        const last = new Date(this.state.lastLogin);
+        const isSameDay = now.getDate() === last.getDate() && now.getMonth() === last.getMonth();
+
+        if (!isSameDay) {
+            // Новый день
+            if (now - last > 86400000 * 2) this.state.streak = 0; // Пропуск > 48ч - сброс
+            
+            const currentDay = Math.min(this.state.streak, 7); // Макс 7 дней
+            this.renderDailyModal(currentDay);
+            this.ui.modalDaily.classList.remove('hidden');
+        }
+    }
+
+    renderDailyModal(dayIndex) {
+        this.ui.dailyGrid.innerHTML = '';
+        const rewards = [100, 200, 350, 500, 800, 1200, 2000, 5000];
+        
+        for(let i=0; i<8; i++) {
+            const div = document.createElement('div');
+            div.className = `day-item ${i < dayIndex ? 'claimed' : (i === dayIndex ? 'active' : '')}`;
+            div.innerHTML = `День ${i+1} <span class="day-reward">+${rewards[i]}</span>`;
+            this.ui.dailyGrid.appendChild(div);
+        }
+
+        this.ui.btnDaily.disabled = false;
+        this.ui.btnDaily.onclick = () => {
+            this.state.coins += rewards[dayIndex];
+            this.state.lastLogin = Date.now();
+            this.state.streak++;
+            this.ui.modalDaily.classList.add('hidden');
+            this.updateUI();
+            this.saveData();
+            tg.HapticFeedback.notificationOccurred('success');
+        };
+    }
+
+    // --- NEW: Супер-способность ---
+    activateRain() {
+        if (this.state.water >= 50) {
+            this.state.water -= 50;
+            tg.HapticFeedback.notificationOccurred('success');
+            
+            // Визуал дождя
+            for(let i=0; i<20; i++) {
+                setTimeout(() => {
+                    this.fx.spawn(Math.random() * window.innerWidth, 0, 'rain', 2);
+                }, i * 50);
+            }
+
+            // Тушим всех
+            this.cells.forEach(cell => {
+                if(parseInt(cell.dataset.hp) > 0) {
+                    cell.dataset.hp = 0;
+                    this.extinguishFire(cell);
+                }
+            });
+            this.updateUI();
+        } else {
+            tg.HapticFeedback.notificationOccurred('error');
+            alert("Нужно 50 воды для вызова дождя!");
+        }
+    }
+
+    // --- GAMEPLAY ---
     renderGrid() {
         this.ui.grid.innerHTML = '';
         this.cells = [];
@@ -146,19 +189,12 @@ class GameApp {
             cell.className = 'cell house';
             cell.dataset.hp = 0;
             
-            // Используем touchstart для мгновенного отклика на мобильных
-            cell.addEventListener('touchstart', (e) => {
-                e.preventDefault();
+            const handle = (e) => {
                 const rect = cell.getBoundingClientRect();
                 this.handleInteraction(i, rect.left + rect.width/2, rect.top + rect.height/2);
-            });
-            
-            // Фоллбек для мышки
-            cell.addEventListener('mousedown', (e) => {
-                const rect = cell.getBoundingClientRect();
-                this.handleInteraction(i, rect.left + rect.width/2, rect.top + rect.height/2);
-            });
-
+            };
+            cell.addEventListener('touchstart', (e) => { e.preventDefault(); handle(e); });
+            cell.addEventListener('mousedown', handle);
             this.ui.grid.appendChild(cell);
             this.cells.push(cell);
         }
@@ -170,39 +206,34 @@ class GameApp {
         const hp = parseInt(cell.dataset.hp);
 
         if (hp > 0) {
-            // Тушим огонь
             if (this.state.water >= 5) {
                 this.state.water -= 5;
-                const damage = this.state.clickPower;
-                const newHp = Math.max(0, hp - damage);
-                
+                const newHp = Math.max(0, hp - this.state.clickPower);
                 cell.dataset.hp = newHp;
                 this.fx.spawn(x, y, 'water');
                 tg.HapticFeedback.impactOccurred('medium');
-
-                if (newHp === 0) {
-                    this.extinguishFire(cell);
-                }
+                if (newHp === 0) this.extinguishFire(cell);
                 this.updateUI();
             } else {
                 tg.HapticFeedback.notificationOccurred('error');
-                this.ui.waterBtn.parentElement.classList.add('shake'); // Анимация всего блока
-                setTimeout(() => this.ui.waterBtn.parentElement.classList.remove('shake'), 500);
             }
-        } else {
-            // Просто клик по дому (пасхалка или звук)
-            // tg.HapticFeedback.selectionChanged();
         }
     }
 
     extinguishFire(cell) {
         cell.className = 'cell house';
-        this.state.coins += 10 + (this.state.level * 2);
+        this.state.coins += 15;
         this.state.firesExtinguished++;
-        tg.HapticFeedback.notificationOccurred('success');
-        
-        // Проверка квеста
-        this.updateQuestUI();
+        this.updateUI();
+    }
+
+    igniteRandom() {
+        const safe = this.cells.filter(c => c.dataset.hp == 0);
+        if (safe.length > 0) {
+            const t = safe[Math.floor(Math.random() * safe.length)];
+            t.dataset.hp = 100;
+            t.className = 'cell fire';
+        }
     }
 
     manualReload() {
@@ -213,156 +244,97 @@ class GameApp {
         }
     }
 
-    igniteRandom() {
-        const safeCells = this.cells.filter(c => c.dataset.hp == 0);
-        if (safeCells.length > 0) {
-            const target = safeCells[Math.floor(Math.random() * safeCells.length)];
-            target.dataset.hp = 100;
-            target.className = 'cell fire';
-            
-            const rect = target.getBoundingClientRect();
-            this.fx.spawn(rect.left + 20, rect.top + 20, 'fire');
-        }
-    }
-
     startLoop() {
         setInterval(() => {
-            // 1. Медленное восстановление воды
-            if (this.state.water < this.state.maxWater) {
-                this.state.water = Math.min(this.state.water + this.config.regenRate, this.state.maxWater);
-            }
-
-            // 2. Распространение огня
-            const burningCount = this.cells.filter(c => c.dataset.hp > 0).length;
-            this.state.burned = Math.floor((burningCount / this.config.gridSize) * 100);
+            if (this.state.water < this.state.maxWater) this.state.water += this.config.regenRate;
             
-            // Шанс нового возгорания зависит от текущего %
-            const chance = this.config.fireSpreadChance + (this.state.burned / 5000);
-            if (Math.random() < chance) {
-                this.igniteRandom();
-            }
-
-            // 3. Пассивный доход
-            if (this.state.autoIncome > 0) {
-                this.state.coins += this.state.autoIncome / 10; // делим на 10 т.к. тик 100мс
-            }
-
+            const burnCount = this.cells.filter(c => c.dataset.hp > 0).length;
+            this.state.burned = Math.floor((burnCount / this.config.gridSize) * 100);
+            
+            if (Math.random() < 0.02 + (this.state.burned/3000)) this.igniteRandom();
+            
             this.updateUI();
-        }, 100); // Тик каждые 100мс (10 раз в секунду)
-        
-        // Автосохранение каждые 10 сек
-        setInterval(() => this.saveData(), 10000);
+        }, 100);
+        setInterval(() => this.saveData(), 5000);
     }
 
+    // --- UI/UX ---
     renderShop() {
         const items = [
-            { id: 'pump', name: 'Турбо-насос', desc: '+5 к силе клика', cost: 100, icon: '🔫' },
-            { id: 'tank', name: 'Бак 2000', desc: '+50 к объему воды', cost: 250, icon: '🛢️' },
-            { id: 'station', name: 'Найм бригады', desc: '+2 монеты/сек (AFK)', cost: 1000, icon: '👨‍🚒' }
+            { id: 'pump', name: 'Насос V8', desc: '+5 Силы', cost: 150 },
+            { id: 'tank', name: 'Бак XL', desc: '+50 Воды', cost: 300 }
         ];
-
-        this.ui.shopList.innerHTML = '';
-        items.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'shop-item';
-            div.innerHTML = `
-                <div class="item-icon">${item.icon}</div>
-                <div class="item-details">
-                    <h4>${item.name} <small>(Ур. <span id="lvl-${item.id}">${this.state.upgrades[item.id]}</span>)</small></h4>
-                    <p>${item.desc}</p>
+        this.ui.shopList.innerHTML = items.map(i => `
+            <div class="shop-item">
+                <div style="flex:1">
+                    <h4>${i.name} <small>(Ур. ${this.state.upgrades[i.id]})</small></h4>
+                    <p>${i.desc}</p>
                 </div>
-                <button class="buy-btn" id="btn-${item.id}" onclick="app.buy('${item.id}', ${item.cost})">
-                    ${this.getPrice(item.id, item.cost)} 🪙
+                <button class="buy-btn" onclick="app.buy('${i.id}', ${i.cost})">
+                    ${Math.floor(i.cost * Math.pow(1.5, this.state.upgrades[i.id]))} 🪙
                 </button>
-            `;
-            this.ui.shopList.appendChild(div);
-        });
+            </div>
+        `).join('');
     }
 
-    getPrice(id, baseCost) {
-        return Math.floor(baseCost * Math.pow(1.5, this.state.upgrades[id]));
+    renderLeaderboard() {
+        const players = [
+            { name: "Alex Fire", score: 15400 },
+            { name: "Sam Hero", score: 12200 },
+            { name: "Maria_99", score: 9800 }
+        ];
+        this.ui.leaderboardList.innerHTML = players.map((p, i) => `
+            <div class="leader-row">
+                <span class="rank">#${i+1}</span>
+                <span class="name">${p.name}</span>
+                <span class="score">${p.score}</span>
+            </div>
+        `).join('');
     }
 
-    buy(id, baseCost) {
-        const price = this.getPrice(id, baseCost);
+    buy(id, base) {
+        const price = Math.floor(base * Math.pow(1.5, this.state.upgrades[id]));
         if (this.state.coins >= price) {
             this.state.coins -= price;
             this.state.upgrades[id]++;
-            
-            // Применяем эффекты
-            if (id === 'pump') this.state.clickPower += 5;
-            if (id === 'tank') this.state.maxWater += 50;
-            if (id === 'station') this.state.autoIncome += 2;
-
-            tg.HapticFeedback.notificationOccurred('success');
-            this.renderShop(); // Перерисовать цены
+            if(id === 'pump') this.state.clickPower += 5;
+            if(id === 'tank') this.state.maxWater += 50;
+            this.renderShop();
             this.updateUI();
-        } else {
-            tg.HapticFeedback.notificationOccurred('error');
+            tg.HapticFeedback.notificationOccurred('success');
         }
     }
 
-    switchTab(tabId) {
+    inviteFriend() {
+        const link = "https://t.me/share/url?url=https://t.me/твоя_игра_бот&text=Спаси город вместе со мной!";
+        tg.openTelegramLink(link);
+    }
+
+    switchTab(id) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById(`tab-${id}`).classList.add('active');
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         
-        document.getElementById(`tab-${tabId}`).classList.add('active');
-        // Находим кнопку (грязно, но быстро)
-        const btns = document.querySelectorAll('.nav-btn');
-        if(tabId === 'game') btns[0].classList.add('active');
-        if(tabId === 'shop') btns[1].classList.add('active');
-        if(tabId === 'hq') btns[2].classList.add('active');
-        
+        const map = { 'game': 0, 'shop': 1, 'social': 2 };
+        document.querySelectorAll('.nav-btn')[map[id]].classList.add('active');
         tg.HapticFeedback.selectionChanged();
-    }
-
-    updateQuestUI() {
-        const target = 100;
-        const current = Math.min(this.state.firesExtinguished, target);
-        this.ui.questProgress.value = current;
-        
-        if (current >= target && !this.ui.questBtn.classList.contains('claimed')) {
-            this.ui.questBtn.classList.remove('disabled');
-            this.ui.questBtn.style.background = 'var(--success)';
-            this.ui.questBtn.style.color = '#fff';
-        }
-    }
-
-    claimQuest() {
-        if (!this.ui.questBtn.classList.contains('disabled') && !this.ui.questBtn.classList.contains('claimed')) {
-            this.state.coins += 500;
-            this.ui.questBtn.innerText = 'Получено ✅';
-            this.ui.questBtn.classList.add('claimed', 'disabled');
-            tg.HapticFeedback.notificationOccurred('success');
-        }
     }
 
     updateUI() {
         this.ui.coins.innerText = Math.floor(this.state.coins);
+        this.ui.totalScore.innerText = Math.floor(this.state.coins); // Для лидерборда
         this.ui.burned.innerText = this.state.burned + '%';
-        this.ui.burned.style.color = this.state.burned > 50 ? 'var(--danger)' : 'var(--text-main)';
-        
+        this.ui.burned.style.color = this.state.burned > 50 ? 'red' : 'white';
         const pct = (this.state.water / this.state.maxWater) * 100;
         this.ui.waterFill.style.width = `${pct}%`;
         this.ui.waterText.innerText = `${Math.floor(this.state.water)}/${this.state.maxWater}`;
-        
-        this.ui.passiveRate.innerText = this.state.autoIncome.toFixed(1);
     }
 
-    saveData() {
-        const json = JSON.stringify(this.state);
-        localStorage.setItem('FireHeroPro_v1', json);
-        // TODO: Здесь добавить tg.CloudStorage.setItem для реального продакшена
-    }
-
+    saveData() { localStorage.setItem('FireHeroV3', JSON.stringify(this.state)); }
     loadSave() {
-        const save = localStorage.getItem('FireHeroPro_v1');
-        if (save) {
-            const data = JSON.parse(save);
-            // Merge state to avoid breaking on updates
-            this.state = { ...this.state, ...data };
-        }
+        try { this.state = { ...this.state, ...JSON.parse(localStorage.getItem('FireHeroV3')) }; } catch(e) {}
     }
 }
 
 window.app = new GameApp();
+window.app.start();
