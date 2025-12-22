@@ -1,340 +1,443 @@
-const tg = window.Telegram.WebApp;
-try { tg.expand(); tg.disableVerticalSwipes(); } catch(e) {}
+/**
+ * FireHero: Elite Squad
+ * Senior-level Refactor
+ * Stack: Vanilla JS (ES6+), Proxy State, Canvas Particles, Virtual-DOM-ish approach
+ */
 
-// --- FIX: Haptic Mock для ПК ---
-if (!tg.HapticFeedback) {
-    tg.HapticFeedback = {
-        impactOccurred: () => {},
-        notificationOccurred: () => {},
-        selectionChanged: () => {}
-    };
+// --- CONFIGURATION ---
+const CONFIG = {
+    gridSize: 25,
+    regenRate: 20, // Water per second
+    fireSpreadChance: 0.015,
+    autoSaveInterval: 5000,
+    costs: {
+        pump: { base: 100, growth: 1.6 },
+        tank: { base: 250, growth: 1.5 },
+        rain: 50
+    },
+    levels: {
+        pump: [0, 5, 12, 25, 50, 100], // Click Power
+        tank: [0, 50, 150, 300, 600, 1000] // Bonus Water
+    }
+};
+
+// --- CORE UTILS ---
+const TG = window.Telegram.WebApp;
+const Haptic = {
+    impact: (style = 'medium') => TG.HapticFeedback?.impactOccurred(style),
+    notify: (type = 'success') => TG.HapticFeedback?.notificationOccurred(type),
+    select: () => TG.HapticFeedback?.selectionChanged()
+};
+
+// --- STATE MANAGEMENT (REACTIVE) ---
+class GameState {
+    constructor() {
+        // Начальное состояние
+        this._data = {
+            coins: 0,
+            water: 100,
+            maxWater: 100,
+            burnedPercent: 0,
+            upgrades: { pump: 1, tank: 1 },
+            lastSave: Date.now()
+        };
+
+        // Слушатели изменений
+        this.listeners = new Map();
+
+        // Создаем Proxy для перехвата изменений
+        this.proxy = new Proxy(this._data, {
+            set: (target, prop, value) => {
+                target[prop] = value;
+                this.notify(prop, value);
+                return true;
+            }
+        });
+    }
+
+    get() { return this.proxy; }
+
+    // Подписка UI на изменения конкретных полей
+    subscribe(prop, callback) {
+        if (!this.listeners.has(prop)) this.listeners.set(prop, []);
+        this.listeners.get(prop).push(callback);
+    }
+
+    notify(prop, value) {
+        if (this.listeners.has(prop)) {
+            this.listeners.get(prop).forEach(cb => cb(value));
+        }
+    }
+
+    load() {
+        try {
+            const saved = localStorage.getItem('FireHero_Save_v1');
+            if (saved) Object.assign(this._data, JSON.parse(saved));
+        } catch (e) { console.warn('Save file corrupted'); }
+        // Инициализация UI
+        Object.keys(this._data).forEach(k => this.notify(k, this._data[k]));
+    }
+
+    save() {
+        localStorage.setItem('FireHero_Save_v1', JSON.stringify(this._data));
+    }
 }
 
-// --- PARTICLE SYSTEM ---
-class ParticleSystem {
+// --- VISUAL FX SYSTEM (Canvas) ---
+class FXManager {
     constructor() {
-        this.canvas = document.getElementById('fx-canvas');
-        if (!this.canvas) return;
+        this.canvas = document.getElementById('game-canvas');
         this.ctx = this.canvas.getContext('2d');
         this.particles = [];
+        this.floatingTexts = [];
+        
         this.resize();
         window.addEventListener('resize', () => this.resize());
-        this.animate();
+        this.loop();
     }
-    resize() { this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; }
-    spawn(x, y, type = 'water', count = 8) {
-        for (let i = 0; i < count; i++) {
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
+    spawn(x, y, type) {
+        const count = type === 'rain' ? 2 : (type === 'fire' ? 5 : 10);
+        for(let i=0; i<count; i++) {
             this.particles.push({
-                x: x, y: y,
-                vx: (Math.random() - 0.5) * (type==='rain'?2:10),
-                vy: (Math.random() - 0.5) * (type==='rain'?2:10),
-                life: 1.0, type: type,
-                size: Math.random() * 3 + 2
+                x, y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1.0, type,
+                color: type === 'fire' ? `255, 69, 58` : `10, 132, 255`
             });
         }
     }
-    animate() {
-        if (!this.ctx) return;
+
+    floatText(x, y, text, color = '#ffd60a') {
+        this.floatingTexts.push({ x, y, text, color, life: 1.0, vy: -2 });
+    }
+
+    loop() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Particles
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.life -= 0.03;
-            if (p.type === 'water') p.vy += 0.5; // Гравитация
-            if (p.type === 'rain') p.vy += 10; // Быстрый дождь вниз
-            else if (p.type === 'fire') p.vy -= 0.1; // Дым вверх
+            p.life -= 0.04;
+            
+            if (p.type === 'rain') p.vy += 1; else p.vy += 0.2; // Gravity
 
-            this.ctx.fillStyle = p.type==='fire' ? `rgba(255, 69, 58, ${p.life})` : `rgba(10, 132, 255, ${p.life})`;
-            this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); this.ctx.fill();
+            this.ctx.fillStyle = `rgba(${p.color}, ${p.life})`;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, Math.random()*3+1, 0, Math.PI * 2);
+            this.ctx.fill();
+
             if (p.life <= 0) this.particles.splice(i, 1);
         }
-        requestAnimationFrame(() => this.animate());
+
+        // Floating Text
+        this.ctx.font = "bold 24px -apple-system";
+        this.ctx.textAlign = "center";
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const t = this.floatingTexts[i];
+            t.y += t.vy;
+            t.life -= 0.02;
+            this.ctx.fillStyle = t.color; // Opacity handling needs parsing but simplifying here
+            this.ctx.globalAlpha = Math.max(0, t.life);
+            this.ctx.fillText(t.text, t.x, t.y);
+            this.ctx.globalAlpha = 1;
+            if (t.life <= 0) this.floatingTexts.splice(i, 1);
+        }
+
+        requestAnimationFrame(() => this.loop());
     }
 }
 
-// --- GAME LOGIC ---
-class GameApp {
+// --- MAIN GAME CONTROLLER ---
+class GameController {
     constructor() {
-        this.state = {
-            coins: 0,
-            level: 1,
-            water: 100, maxWater: 100,
-            clickPower: 25,
-            burned: 0,
-            firesExtinguished: 0,
-            upgrades: { pump: 1, tank: 1 },
-            lastLogin: 0,
-            streak: 0
-        };
-        this.config = { gridSize: 25, regenRate: 0.2 };
+        this.store = new GameState();
+        this.state = this.store.get();
+        this.fx = new FXManager();
         this.cells = [];
-        this.fx = new ParticleSystem();
+        this.lastTime = 0;
+        
+        // Caches
+        this.ui = {
+            grid: document.getElementById('grid-container'),
+            waterFill: document.getElementById('water-bar-fill'),
+            rainBtn: document.getElementById('btn-rain'),
+            shop: document.getElementById('shop-container'),
+            views: document.querySelectorAll('.view'),
+            navs: document.querySelectorAll('.nav-item')
+        };
+
+        this.init();
     }
 
-    start() {
-        // Ждем загрузки DOM
-        document.addEventListener('DOMContentLoaded', () => {
-            this.ui = this.bindUI();
-            this.init();
+    async init() {
+        try { TG.expand(); TG.disableVerticalSwipes(); } catch(e){}
+        
+        this.setupBindings();
+        this.generateGrid();
+        this.renderShop();
+        this.setupNavigation();
+        
+        // Load Data
+        this.store.load();
+        
+        // Start Loops
+        requestAnimationFrame((t) => this.gameLoop(t));
+        
+        // Remove Loader
+        setTimeout(() => {
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+        }, 1000);
+
+        this.ui.rainBtn.addEventListener('click', () => this.activateRain());
+        document.getElementById('water-btn').addEventListener('click', () => this.manualRefill());
+    }
+
+    setupBindings() {
+        // Data-binding: ищем все элементы с data-bind и обновляем их при смене state
+        const boundElements = document.querySelectorAll('[data-bind]');
+        boundElements.forEach(el => {
+            const prop = el.dataset.bind;
+            this.store.subscribe(prop, (val) => {
+                if(prop === 'burned') el.innerText = `${Math.floor(val)}%`;
+                else if(prop === 'water' || prop === 'coins') el.innerText = Math.floor(val);
+                else el.innerText = val;
+            });
+        });
+
+        // Special bindings
+        this.store.subscribe('water', (val) => {
+            const pct = (val / this.state.maxWater) * 100;
+            this.ui.waterFill.style.transform = `scaleX(${pct / 100})`;
+            
+            // Unlock rain logic
+            if (val >= CONFIG.costs.rain) this.ui.rainBtn.classList.remove('locked');
+            else this.ui.rainBtn.classList.add('locked');
         });
     }
 
-    bindUI() {
-        const get = (id) => document.getElementById(id);
-        return {
-            coins: get('coins'), burned: get('burned'),
-            grid: get('city-grid'), waterFill: get('water-fill'), waterText: get('water-text'),
-            waterBtn: get('water-btn'), shopList: get('shop-list'),
-            loader: get('loader'), app: get('app'),
-            modalDaily: get('modal-daily'), dailyGrid: get('daily-grid'), btnDaily: get('btn-claim-daily'),
-            abilityRain: get('ability-rain'),
-            leaderboardList: get('leaderboard-list'), totalScore: get('total-score')
-        };
-    }
-
-    init() {
-        this.loadSave();
-        this.simulateLoading();
-        this.renderGrid();
-        this.renderShop();
-        this.renderLeaderboard();
-        this.startLoop();
-        this.checkDailyBonus();
-
-        // Слушатели
-        if(this.ui.waterBtn) this.ui.waterBtn.addEventListener('click', () => this.manualReload());
-        if(this.ui.abilityRain) this.ui.abilityRain.addEventListener('click', () => this.activateRain());
-    }
-
-    simulateLoading() {
-        setTimeout(() => {
-            if(this.ui.loader) this.ui.loader.classList.add('hidden');
-            if(this.ui.app) this.ui.app.classList.remove('hidden');
-        }, 1500);
-    }
-
-    // --- NEW: Ежедневный бонус ---
-    checkDailyBonus() {
-        const now = new Date();
-        const last = new Date(this.state.lastLogin);
-        const isSameDay = now.getDate() === last.getDate() && now.getMonth() === last.getMonth();
-
-        if (!isSameDay) {
-            // Новый день
-            if (now - last > 86400000 * 2) this.state.streak = 0; // Пропуск > 48ч - сброс
-            
-            const currentDay = Math.min(this.state.streak, 7); // Макс 7 дней
-            this.renderDailyModal(currentDay);
-            this.ui.modalDaily.classList.remove('hidden');
-        }
-    }
-
-    renderDailyModal(dayIndex) {
-        this.ui.dailyGrid.innerHTML = '';
-        const rewards = [100, 200, 350, 500, 800, 1200, 2000, 5000];
-        
-        for(let i=0; i<8; i++) {
-            const div = document.createElement('div');
-            div.className = `day-item ${i < dayIndex ? 'claimed' : (i === dayIndex ? 'active' : '')}`;
-            div.innerHTML = `День ${i+1} <span class="day-reward">+${rewards[i]}</span>`;
-            this.ui.dailyGrid.appendChild(div);
-        }
-
-        this.ui.btnDaily.disabled = false;
-        this.ui.btnDaily.onclick = () => {
-            this.state.coins += rewards[dayIndex];
-            this.state.lastLogin = Date.now();
-            this.state.streak++;
-            this.ui.modalDaily.classList.add('hidden');
-            this.updateUI();
-            this.saveData();
-            tg.HapticFeedback.notificationOccurred('success');
-        };
-    }
-
-    // --- NEW: Супер-способность ---
-    activateRain() {
-        if (this.state.water >= 50) {
-            this.state.water -= 50;
-            tg.HapticFeedback.notificationOccurred('success');
-            
-            // Визуал дождя
-            for(let i=0; i<20; i++) {
-                setTimeout(() => {
-                    this.fx.spawn(Math.random() * window.innerWidth, 0, 'rain', 2);
-                }, i * 50);
-            }
-
-            // Тушим всех
-            this.cells.forEach(cell => {
-                if(parseInt(cell.dataset.hp) > 0) {
-                    cell.dataset.hp = 0;
-                    this.extinguishFire(cell);
-                }
-            });
-            this.updateUI();
-        } else {
-            tg.HapticFeedback.notificationOccurred('error');
-            alert("Нужно 50 воды для вызова дождя!");
-        }
-    }
-
-    // --- GAMEPLAY ---
-    renderGrid() {
+    generateGrid() {
         this.ui.grid.innerHTML = '';
-        this.cells = [];
-        for (let i = 0; i < this.config.gridSize; i++) {
+        for (let i = 0; i < CONFIG.gridSize; i++) {
             const cell = document.createElement('div');
-            cell.className = 'cell house';
+            cell.className = 'cell';
+            cell.innerHTML = '<div class="cell-content">🏢</div>';
             cell.dataset.hp = 0;
             
-            const handle = (e) => {
+            // Fast Interaction
+            const interact = (e) => {
+                // Prevent ghost clicks
+                if (e.type === 'touchstart') e.preventDefault(); 
                 const rect = cell.getBoundingClientRect();
-                this.handleInteraction(i, rect.left + rect.width/2, rect.top + rect.height/2);
+                this.handleCellClick(i, cell, rect.left + rect.width/2, rect.top + rect.height/2);
             };
-            cell.addEventListener('touchstart', (e) => { e.preventDefault(); handle(e); });
-            cell.addEventListener('mousedown', handle);
+            
+            cell.addEventListener('touchstart', interact, {passive: false});
+            cell.addEventListener('mousedown', interact);
+            
             this.ui.grid.appendChild(cell);
             this.cells.push(cell);
         }
-        this.igniteRandom();
     }
 
-    handleInteraction(index, x, y) {
-        const cell = this.cells[index];
-        const hp = parseInt(cell.dataset.hp);
-
+    handleCellClick(index, el, x, y) {
+        const hp = parseInt(el.dataset.hp);
+        
         if (hp > 0) {
+            // Extinguish Logic
             if (this.state.water >= 5) {
                 this.state.water -= 5;
-                const newHp = Math.max(0, hp - this.state.clickPower);
-                cell.dataset.hp = newHp;
+                const power = CONFIG.levels.pump[this.state.upgrades.pump] + 20;
+                const newHp = Math.max(0, hp - power);
+                
+                el.dataset.hp = newHp;
                 this.fx.spawn(x, y, 'water');
-                tg.HapticFeedback.impactOccurred('medium');
-                if (newHp === 0) this.extinguishFire(cell);
-                this.updateUI();
+                Haptic.impact('light');
+
+                if (newHp <= 0) {
+                    this.clearFire(el, x, y);
+                }
             } else {
-                tg.HapticFeedback.notificationOccurred('error');
+                Haptic.notify('error');
+                // Shake water bar UI
+                document.querySelector('.water-widget').style.animation = 'shake 0.4s';
+                setTimeout(()=>document.querySelector('.water-widget').style.animation='', 400);
             }
+        } else {
+            // Just effects
+            // Haptic.select();
         }
     }
 
-    extinguishFire(cell) {
-        cell.className = 'cell house';
-        this.state.coins += 15;
-        this.state.firesExtinguished++;
-        this.updateUI();
+    clearFire(el, x, y) {
+        el.className = 'cell';
+        el.querySelector('.cell-content').innerText = '🏢';
+        const reward = 10 + (this.state.upgrades.pump * 2);
+        this.state.coins += reward;
+        this.fx.floatText(x, y - 20, `+${reward}`);
+        Haptic.notify('success');
     }
 
-    igniteRandom() {
-        const safe = this.cells.filter(c => c.dataset.hp == 0);
-        if (safe.length > 0) {
-            const t = safe[Math.floor(Math.random() * safe.length)];
-            t.dataset.hp = 100;
-            t.className = 'cell fire';
+    startFire(el) {
+        el.dataset.hp = 100;
+        el.className = 'cell fire';
+        el.querySelector('.cell-content').innerText = '🔥';
+        const rect = el.getBoundingClientRect();
+        this.fx.spawn(rect.left + 20, rect.top + 20, 'fire');
+    }
+
+    activateRain() {
+        if (this.state.water >= CONFIG.costs.rain) {
+            this.state.water -= CONFIG.costs.rain;
+            Haptic.notify('success');
+            
+            // Visuals
+            const interval = setInterval(() => {
+                this.fx.spawn(Math.random() * window.innerWidth, -10, 'rain');
+            }, 50);
+
+            // Logic: Clear all fires over 2 seconds
+            setTimeout(() => {
+                clearInterval(interval);
+                this.cells.forEach(c => {
+                    if (parseInt(c.dataset.hp) > 0) {
+                        const rect = c.getBoundingClientRect();
+                        c.dataset.hp = 0;
+                        this.clearFire(c, rect.left + 20, rect.top + 20);
+                    }
+                });
+            }, 1000);
         }
     }
 
-    manualReload() {
+    manualRefill() {
         if (this.state.water < this.state.maxWater) {
             this.state.water = Math.min(this.state.water + 15, this.state.maxWater);
-            tg.HapticFeedback.selectionChanged();
-            this.updateUI();
+            Haptic.select();
         }
     }
 
-    startLoop() {
-        setInterval(() => {
-            if (this.state.water < this.state.maxWater) this.state.water += this.config.regenRate;
-            
-            const burnCount = this.cells.filter(c => c.dataset.hp > 0).length;
-            this.state.burned = Math.floor((burnCount / this.config.gridSize) * 100);
-            
-            if (Math.random() < 0.02 + (this.state.burned/3000)) this.igniteRandom();
-            
-            this.updateUI();
-        }, 100);
-        setInterval(() => this.saveData(), 5000);
+    // --- GAME LOOP (Delta Time) ---
+    gameLoop(timestamp) {
+        const dt = (timestamp - this.lastTime) / 1000;
+        this.lastTime = timestamp;
+
+        // 1. Water Regen
+        if (this.state.water < this.state.maxWater) {
+            this.state.water = Math.min(this.state.water + (CONFIG.regenRate * dt), this.state.maxWater);
+        }
+
+        // 2. Fire Spread Logic
+        const burning = this.cells.filter(c => parseInt(c.dataset.hp) > 0);
+        this.state.burnedPercent = Math.floor((burning.length / CONFIG.gridSize) * 100);
+        
+        // Chance to burn based on current threat
+        if (Math.random() < CONFIG.fireSpreadChance && burning.length < CONFIG.gridSize) {
+            const safe = this.cells.filter(c => parseInt(c.dataset.hp) === 0);
+            if (safe.length > 0) {
+                const target = safe[Math.floor(Math.random() * safe.length)];
+                this.startFire(target);
+            }
+        }
+
+        // 3. Auto Save
+        if (Date.now() - this.state.lastSave > CONFIG.autoSaveInterval) {
+            this.store.save();
+            this.state.lastSave = Date.now();
+        }
+
+        requestAnimationFrame((t) => this.gameLoop(t));
     }
 
-    // --- UI/UX ---
+    // --- UI HELPERS ---
     renderShop() {
         const items = [
-            { id: 'pump', name: 'Насос V8', desc: '+5 Силы', cost: 150 },
-            { id: 'tank', name: 'Бак XL', desc: '+50 Воды', cost: 300 }
+            { id: 'pump', name: 'Гидро-Пушка', icon: '🔫', desc: 'Мощность струи' },
+            { id: 'tank', name: 'Цистерна', icon: '🛢️', desc: 'Запас воды' }
         ];
-        this.ui.shopList.innerHTML = items.map(i => `
+
+        this.ui.shop.innerHTML = items.map(item => `
             <div class="shop-item">
-                <div style="flex:1">
-                    <h4>${i.name} <small>(Ур. ${this.state.upgrades[i.id]})</small></h4>
-                    <p>${i.desc}</p>
+                <div class="item-icon">${item.icon}</div>
+                <div class="item-info">
+                    <h4>${item.name} <small>Lvl <span data-bind-upgrade="${item.id}">1</span></small></h4>
+                    <p>${item.desc}</p>
                 </div>
-                <button class="buy-btn" onclick="app.buy('${i.id}', ${i.cost})">
-                    ${Math.floor(i.cost * Math.pow(1.5, this.state.upgrades[i.id]))} 🪙
+                <button class="btn-buy" onclick="Game.buyUpgrade('${item.id}')">
+                    <span id="cost-${item.id}">...</span> 🪙
                 </button>
             </div>
         `).join('');
+        this.updateShopPrices();
     }
 
-    renderLeaderboard() {
-        const players = [
-            { name: "Alex Fire", score: 15400 },
-            { name: "Sam Hero", score: 12200 },
-            { name: "Maria_99", score: 9800 }
-        ];
-        this.ui.leaderboardList.innerHTML = players.map((p, i) => `
-            <div class="leader-row">
-                <span class="rank">#${i+1}</span>
-                <span class="name">${p.name}</span>
-                <span class="score">${p.score}</span>
-            </div>
-        `).join('');
-    }
-
-    buy(id, base) {
-        const price = Math.floor(base * Math.pow(1.5, this.state.upgrades[id]));
-        if (this.state.coins >= price) {
-            this.state.coins -= price;
+    buyUpgrade(id) {
+        const lvl = this.state.upgrades[id];
+        const cost = Math.floor(CONFIG.costs[id].base * Math.pow(CONFIG.costs[id].growth, lvl));
+        
+        if (this.state.coins >= cost) {
+            this.state.coins -= cost;
             this.state.upgrades[id]++;
-            if(id === 'pump') this.state.clickPower += 5;
-            if(id === 'tank') this.state.maxWater += 50;
-            this.renderShop();
-            this.updateUI();
-            tg.HapticFeedback.notificationOccurred('success');
+            
+            if (id === 'tank') this.state.maxWater = 100 + CONFIG.levels.tank[this.state.upgrades[id] || 5];
+            
+            Haptic.notify('success');
+            this.updateShopPrices();
+            this.store.save(); // Force save
+        } else {
+            Haptic.notify('error');
         }
     }
 
-    inviteFriend() {
-        const link = "https://t.me/share/url?url=https://t.me/твоя_игра_бот&text=Спаси город вместе со мной!";
-        tg.openTelegramLink(link);
+    updateShopPrices() {
+        ['pump', 'tank'].forEach(id => {
+            const lvl = this.state.upgrades[id];
+            const cost = Math.floor(CONFIG.costs[id].base * Math.pow(CONFIG.costs[id].growth, lvl));
+            const btn = document.getElementById(`cost-${id}`);
+            if (btn) btn.innerText = cost;
+            
+            // Update level text manually since it's inside a list
+            document.querySelectorAll(`[data-bind-upgrade="${id}"]`).forEach(el => el.innerText = lvl);
+        });
     }
 
-    switchTab(id) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.getElementById(`tab-${id}`).classList.add('active');
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    setupNavigation() {
+        this.ui.navs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.dataset.target;
+                
+                // UI Switch
+                this.ui.views.forEach(v => v.classList.remove('active'));
+                document.getElementById(targetId).classList.add('active');
+                
+                // Btn active state
+                this.ui.navs.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                Haptic.select();
+            });
+        });
         
-        const map = { 'game': 0, 'shop': 1, 'social': 2 };
-        document.querySelectorAll('.nav-btn')[map[id]].classList.add('active');
-        tg.HapticFeedback.selectionChanged();
-    }
-
-    updateUI() {
-        this.ui.coins.innerText = Math.floor(this.state.coins);
-        this.ui.totalScore.innerText = Math.floor(this.state.coins); // Для лидерборда
-        this.ui.burned.innerText = this.state.burned + '%';
-        this.ui.burned.style.color = this.state.burned > 50 ? 'red' : 'white';
-        const pct = (this.state.water / this.state.maxWater) * 100;
-        this.ui.waterFill.style.width = `${pct}%`;
-        this.ui.waterText.innerText = `${Math.floor(this.state.water)}/${this.state.maxWater}`;
-    }
-
-    saveData() { localStorage.setItem('FireHeroV3', JSON.stringify(this.state)); }
-    loadSave() {
-        try { this.state = { ...this.state, ...JSON.parse(localStorage.getItem('FireHeroV3')) }; } catch(e) {}
+        // Fake Leaderboard fill
+        const names = ['FireMaster', 'SaveCity', 'Hero123', 'WaterBoy'];
+        document.getElementById('leaderboard-list').innerHTML = names.map((n, i) => `
+            <div class="leader-item">
+                <div style="font-weight:bold; width:30px">#${i+2}</div>
+                <div style="flex:1">${n}</div>
+                <div style="color:#ffd60a">${15000 - (i*1000)}</div>
+            </div>
+        `).join('');
     }
 }
 
-window.app = new GameApp();
-window.app.start();
+// Global Access for HTML onclicks
+window.Game = new GameController();
